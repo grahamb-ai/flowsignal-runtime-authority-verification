@@ -108,9 +108,8 @@ Please do not treat a finding outside this declared boundary as evidence for a c
 ## Reproduce the selected 124-test verification
 
 ```bash
-git clone https://github.com/grahamb-ai/flowsignal-agentic-payments.git
-cd flowsignal-agentic-payments
-git checkout public-verification-candidate-v0.1
+git clone https://github.com/grahamb-ai/flowsignal-runtime-authority-verification.git
+cd flowsignal-runtime-authority-verification
 
 python -m venv .venv
 source .venv/bin/activate
