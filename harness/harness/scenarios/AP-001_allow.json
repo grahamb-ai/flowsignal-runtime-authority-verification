@@ -1,0 +1,60 @@
+{
+  "scenario_id": "AP-001",
+  "title": "Payment within autonomous authority",
+  "purpose": "Canonical positive-control scenario for the FS-AN-004 agentic-payments harness.",
+  "authority_request": {
+    "action": "payment.release",
+    "target": "TREASURY_PAYMENT_GATEWAY",
+    "actor": {
+      "id": "agent-treasury-01",
+      "type": "autonomous_agent",
+      "role": "treasury_agent",
+      "authenticated": true,
+      "kya_status": "VERIFIED"
+    },
+    "principal": {
+      "id": "institution-001",
+      "name": "Example Financial Institution"
+    },
+    "mandate": {
+      "id": "MANDATE-TREASURY-001",
+      "status": "ACTIVE",
+      "max_amount": 1000000,
+      "currency": "GBP",
+      "source_accounts": [
+        "TREASURY-001"
+      ],
+      "counterparty_class": "APPROVED_SUPPLIERS",
+      "valid_until": "2026-12-31T23:59:59Z"
+    },
+    "proposed_action": {
+      "amount": 750000,
+      "currency": "GBP",
+      "source_account": "TREASURY-001",
+      "beneficiary": "SUPPLIER-X",
+      "beneficiary_account_reference": "ACCT-SUPPLIER-X-001",
+      "purpose": "Invoice 78431"
+    },
+    "runtime_context": {
+      "counterparty_status": "APPROVED",
+      "account_status": "ACTIVE",
+      "risk_state": "NORMAL",
+      "approval_required": false
+    },
+    "trusted_evidence": {
+      "sanctions_screening": {
+        "status": "CLEAR",
+        "captured_at": "2026-08-10T09:00:00Z",
+        "max_age_seconds": 3600,
+        "source": "SCREENING-SERVICE-01"
+      }
+    },
+    "requested_execution_time": "2026-08-10T09:15:00Z"
+  },
+  "expected": {
+    "decision": "ALLOW",
+    "execution_status": "PERMITTED",
+    "reason_code": "AUTHORITY_ESTABLISHED",
+    "required_action": null
+  }
+}
