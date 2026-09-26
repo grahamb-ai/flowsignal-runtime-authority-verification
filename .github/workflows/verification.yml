@@ -1,0 +1,36 @@
+name: Public Runtime Authority Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run selected 124-test cross-family verification
+        run: |
+          python -m pytest -q \
+            tests/test_fs_rai_r1_exact_money.py \
+            tests/test_fs_rai_r2_authoritative_state.py \
+            tests/test_fs_rai_r2_authority_domain.py \
+            tests/test_fs_rai_r2_authority_evidence_adapters.py \
+            tests/test_fs_rai_r2_authority_resolution.py \
+            tests/test_fs_rai_r2_authority_determination.py \
+            tests/test_fs_rai_r2_final_bind.py \
+            tests/test_fs_rai_r5_lineage.py \
+            tests/test_fs_rai_r3_approval.py \
+            tests/test_fs_rai_r4_authority_usage.py \
+            tests/test_fs_rai_integrated_payment_path.py \
+            tests/test_fs_rai_execution_boundary_integration.py
