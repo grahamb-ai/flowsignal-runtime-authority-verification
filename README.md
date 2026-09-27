@@ -112,14 +112,19 @@ git clone https://github.com/grahamb-ai/flowsignal-runtime-authority-verificatio
 cd flowsignal-runtime-authority-verification
 
 python -m venv .venv
-source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
 
-python -m pip install --upgrade pip
-pip install -r harness/requirements.txt
+# macOS / Linux
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r harness/requirements.txt
+
+# Windows PowerShell (no script activation required)
+# .venv\Scripts\python.exe -m pip install --upgrade pip
+# .venv\Scripts\python.exe -m pip install -r harness\requirements.txt
 
 cd harness
-python -m pytest -q \
+
+# macOS / Linux
+../.venv/bin/python -m pytest -q \
   tests/test_fs_rai_r1_exact_money.py \
   tests/test_fs_rai_r2_authoritative_state.py \
   tests/test_fs_rai_r2_authority_domain.py \
@@ -132,6 +137,9 @@ python -m pytest -q \
   tests/test_fs_rai_r4_authority_usage.py \
   tests/test_fs_rai_integrated_payment_path.py \
   tests/test_fs_rai_execution_boundary_integration.py
+
+# Windows PowerShell: run the same selected suite with
+# ..\.venv\Scripts\python.exe -m pytest -q <the same test files above>
 ```
 
 Expected frozen baseline:
