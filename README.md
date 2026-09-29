@@ -33,9 +33,55 @@ A new reproducible failure is useful evidence, not something to hide.
 
 The engineering question is whether protected consequence can form when one of the required runtime-authority relationships should prevent it.
 
-## Frozen baseline
+## Public WHO / WHAT / NOW / MATCH receipt
 
-The engineering checkpoint underlying this candidate is:
+The reference harness can project a successful final-bind into
+`flowsignal.public-authority-receipt.v1`, a compact JSON view of the runtime
+artifacts:
+
+```json
+{
+  "who": {
+    "authority_subject_id": "agent-treasury-01",
+    "evidence_anchor": "CTX-...",
+    "claim": "AUTHORITY_SUBJECT_BOUND"
+  },
+  "what": {
+    "protected_operation_id": "OP-...",
+    "action": "payment.release",
+    "amount": "750000",
+    "currency": "GBP"
+  },
+  "now": {
+    "status": "VALID_AT_FINAL_BIND",
+    "checked_at": "2026-08-10T09:15:00+00:00",
+    "valid_until": "2026-08-10T09:16:00+00:00"
+  },
+  "match": {
+    "status": "EXACT_CORRESPONDENCE",
+    "final_bind_reason": "FINAL_BIND_AUTHORITY_REVALIDATED"
+  },
+  "outcome": {
+    "decision": "PERMITTED_TO_ACT",
+    "consequence_formed": false
+  }
+}
+```
+
+The complete document also carries the principal, mandate, institutional
+operation, authority binding and execution-lineage identifiers plus a SHA-256
+integrity digest. Verification compares the JSON with the trusted runtime
+artifacts; the digest alone is not represented as an external signature.
+
+This is deliberately a presentation layer. It neither grants authority nor
+mints an execution capability, and `PERMITTED_TO_ACT` does not assert that a
+downstream consequence formed. See
+`harness/app/engines/public_authority_receipt.py` and the hostile mutation tests
+in `harness/tests/test_public_authority_receipt.py`.
+
+## Original frozen baseline
+
+The engineering checkpoint underlying the original candidate is:
 
 ```
 257d28cd6171475afd6b6b37b2db2a954399939b
@@ -105,7 +151,7 @@ This candidate does not establish:
 
 Please do not treat a finding outside this declared boundary as evidence for a claim we have not made. It may still be useful as a proposed extension of scope.
 
-## Reproduce the selected 124-test verification
+## Reproduce the selected verification
 
 ```bash
 git clone https://github.com/grahamb-ai/flowsignal-runtime-authority-verification.git
@@ -136,16 +182,17 @@ cd harness
   tests/test_fs_rai_r3_approval.py \
   tests/test_fs_rai_r4_authority_usage.py \
   tests/test_fs_rai_integrated_payment_path.py \
-  tests/test_fs_rai_execution_boundary_integration.py
+  tests/test_fs_rai_execution_boundary_integration.py \
+  tests/test_public_authority_receipt.py
 
 # Windows PowerShell: run the same selected suite with
 # ..\.venv\Scripts\python.exe -m pytest -q <the same test files above>
 ```
 
-Expected frozen baseline:
+Expected expanded verification result:
 
 ```
-124 passed
+134 passed
 ```
 
 Timing varies by environment.
