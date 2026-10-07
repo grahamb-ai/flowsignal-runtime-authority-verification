@@ -26,6 +26,7 @@ from app.engines.authority_domain import (
 from app.engines.authority_evidence_adapters import (
     get_actor_authority_evidence,
     get_operational_authority_evidence,
+    get_consequence_authority_evidence,
 )
 from app.engines.institutional_authority import get_authority_snapshot, get_authority_compatibility_cut
 from app.engines.approval_authority import resolve_approval
@@ -163,6 +164,7 @@ def resolve_payment_authority(req, *, resolved_at: datetime
         get_actor_authority_evidence(req.actor_id, req.principal_id, observed_at=at)
         + _mandate_evidence(snapshot, observed_at=at)
         + get_operational_authority_evidence(req.beneficiary, observed_at=at)
+        + get_consequence_authority_evidence(req.institutional_operation_id, observed_at=at)
     )
     index = _evidence_index(evidence)
     missing = tuple(p for p in _REQUIRED_PROPOSITIONS if p not in index)
@@ -214,6 +216,17 @@ def resolve_payment_authority(req, *, resolved_at: datetime
         raise AuthorityResolutionError("source account outside effective mandate")
     if req.amount > index["mandate.max_amount"].observed_value:
         raise AuthorityResolutionError("amount outside effective mandate")
+
+    consequence = index.get("obligation.consequence_state")
+    if consequence is not None:
+        if consequence.subject_binding != req.institutional_operation_id:
+            raise AuthorityResolutionError("consequence state subject mismatch")
+        if consequence.observed_value == "FORMED":
+            raise AuthorityResolutionError("obligation already discharged by formed consequence")
+        if consequence.observed_value == "UNRESOLVED":
+            raise AuthorityResolutionError("prior consequence state unresolved")
+        if consequence.observed_value != "NON_FORMED":
+            raise AuthorityResolutionError("unsupported authoritative consequence state")
 
     semantics = _semantics(snapshot)
     try:
