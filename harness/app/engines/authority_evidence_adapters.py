@@ -237,3 +237,60 @@ def register_operational_standing_for_test(
             authorised_account_references=authorised_account_references,
             source_version=source_version,
         )
+
+
+@dataclass(frozen=True)
+class AuthoritativeConsequenceStanding:
+    institutional_operation_id: str
+    state: str
+    source_version: str
+
+
+_CONSEQUENCE_SOURCE = "INSTITUTIONAL-PAYMENT-STATE-001"
+_CONSEQUENCE_COMPETENCE = "COMPETENCE:PAYMENT-STATE"
+_CONSEQUENCES: dict[str, AuthoritativeConsequenceStanding] = {}
+
+
+def get_consequence_authority_evidence(
+    institutional_operation_id: str | None, *, observed_at: datetime | None = None
+) -> tuple[AuthorityPropositionEvidence, ...]:
+    """Consume competent external payment-state evidence; never infer it from request state."""
+    if not institutional_operation_id:
+        return ()
+    at = _now(observed_at)
+    with _LOCK:
+        standing = _CONSEQUENCES.get(institutional_operation_id)
+        if standing is None:
+            return ()
+        return (
+            _evidence(
+                proposition_id="obligation.consequence_state",
+                semantic_definition_id="NORM-PAY-001:obligation.consequence_state",
+                subject_binding=institutional_operation_id,
+                purpose_context_binding="treasury.payment",
+                observed_value=standing.state,
+                source_id=_CONSEQUENCE_SOURCE,
+                competence_id=_CONSEQUENCE_COMPETENCE,
+                source_version=standing.source_version,
+                observed_at=at,
+            ),
+        )
+
+
+def set_consequence_state_for_test(
+    institutional_operation_id: str, state: str, *, source_version: str = "1"
+) -> None:
+    """Reference-harness support for a competent external payment/ledger source."""
+    if state not in {"FORMED", "NON_FORMED", "UNRESOLVED"}:
+        raise ValueError("unsupported authoritative consequence state")
+    with _LOCK:
+        _CONSEQUENCES[institutional_operation_id] = AuthoritativeConsequenceStanding(
+            institutional_operation_id=institutional_operation_id,
+            state=state,
+            source_version=source_version,
+        )
+
+
+def clear_consequence_state_for_test(institutional_operation_id: str) -> None:
+    with _LOCK:
+        _CONSEQUENCES.pop(institutional_operation_id, None)
