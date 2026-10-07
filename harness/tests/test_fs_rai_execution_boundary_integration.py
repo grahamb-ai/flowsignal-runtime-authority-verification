@@ -1821,3 +1821,38 @@ def test_semantic_provenance_substitution_on_valid_rai_permit_cannot_form_protec
         "SEMANTIC PROVENANCE SUBSTITUTION FAILURE: attacker-rewritten semantic "
         "definition/source provenance survived permit integrity verification"
     )
+
+
+def test_fs_fmk_001_duplicate_second_consequence_must_not_form():
+    """Frozen FS-FMK-001 duplicate-payment challenge; preserve first RED."""
+    from decimal import Decimal
+    from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
+
+    reset_authority_usage_reference_state_for_test()
+    now = datetime.now(timezone.utc)
+    req = load_scenario(SCENARIO, rebase_to_now=False)
+    req = replace(
+        req,
+        amount=Decimal("100000.00"),
+        requested_execution_time=now,
+        screening_captured_at=now,
+        mandate_valid_until=now + timedelta(hours=1),
+        institutional_operation_id="FS-FMK-001:OBLIGATION:INV-78431",
+    )
+    first = prepare_payment_execution(req, route_id="R1", executor_id="PAYMENT-EXECUTOR-1", resolved_at=now)
+    first_permit = mint_rai_bound_execution_permit(req, first, bind_at=now)
+    assert first_permit is not None
+    assert execute_protected_consequence(
+        permit=first_permit, attempted_action_binding_hash=action_binding_hash(_attempt(req))
+    ) == "CONSEQUENCE_FORMED"
+
+    second = prepare_payment_execution(req, route_id="R1", executor_id="PAYMENT-EXECUTOR-1", resolved_at=now)
+    second_permit = mint_rai_bound_execution_permit(req, second, bind_at=now)
+    assert second_permit is not None, "SETUP FAILURE: unrelated incumbent control blocked second candidate"
+    second_outcome = execute_protected_consequence(
+        permit=second_permit, attempted_action_binding_hash=action_binding_hash(_attempt(req))
+    )
+    assert second_outcome != "CONSEQUENCE_FORMED", (
+        "FS-FMK-001 RED: second fresh authority/execution chain formed a second "
+        "protected consequence for the same institutional payment after the first formed"
+    )
