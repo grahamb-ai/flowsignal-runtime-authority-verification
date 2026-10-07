@@ -2,7 +2,7 @@ name: Public Runtime Authority Verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, challenge/fs-fmk-003-consequence-state-candidate]
   pull_request:
   workflow_dispatch:
 
