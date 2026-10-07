@@ -1856,3 +1856,72 @@ def test_fs_fmk_001_duplicate_second_consequence_must_not_form():
         "FS-FMK-001 RED: second fresh authority/execution chain formed a second "
         "protected consequence for the same institutional payment after the first formed"
     )
+
+
+def test_fs_fmk_003_authoritative_formed_state_blocks_second_consequence():
+    """Remediation test: external competent source changes current consequence truth."""
+    from decimal import Decimal
+    from app.engines.authority_evidence_adapters import (
+        set_consequence_state_for_test,
+        clear_consequence_state_for_test,
+    )
+
+    now = datetime.now(timezone.utc)
+    req = load_scenario(SCENARIO, rebase_to_now=False)
+    req = replace(
+        req,
+        amount=Decimal("100000.00"),
+        requested_execution_time=now,
+        screening_captured_at=now,
+        mandate_valid_until=now + timedelta(hours=1),
+        institutional_operation_id="FS-FMK-003:OBLIGATION:INV-78431",
+    )
+    clear_consequence_state_for_test(req.institutional_operation_id)
+    try:
+        set_consequence_state_for_test(req.institutional_operation_id, "NON_FORMED", source_version="1")
+        first = prepare_payment_execution(
+            req, route_id="R1", executor_id="PAYMENT-EXECUTOR-1", resolved_at=now
+        )
+        first_permit = mint_rai_bound_execution_permit(req, first, bind_at=now)
+        assert first_permit is not None
+        assert execute_protected_consequence(
+            permit=first_permit,
+            attempted_action_binding_hash=action_binding_hash(_attempt(req)),
+        ) == "CONSEQUENCE_FORMED"
+
+        # External competent payment/ledger source advances consequence truth.
+        set_consequence_state_for_test(req.institutional_operation_id, "FORMED", source_version="2")
+
+        with pytest.raises(Exception, match="obligation already discharged"):
+            prepare_payment_execution(
+                req, route_id="R1", executor_id="PAYMENT-EXECUTOR-1", resolved_at=now
+            )
+    finally:
+        clear_consequence_state_for_test(req.institutional_operation_id)
+
+
+def test_fs_fmk_003_unresolved_external_state_fails_closed():
+    from decimal import Decimal
+    from app.engines.authority_evidence_adapters import (
+        set_consequence_state_for_test,
+        clear_consequence_state_for_test,
+    )
+
+    now = datetime.now(timezone.utc)
+    req = load_scenario(SCENARIO, rebase_to_now=False)
+    req = replace(
+        req,
+        amount=Decimal("100000.00"),
+        requested_execution_time=now,
+        screening_captured_at=now,
+        mandate_valid_until=now + timedelta(hours=1),
+        institutional_operation_id="FS-FMK-003:OBLIGATION:UNRESOLVED",
+    )
+    set_consequence_state_for_test(req.institutional_operation_id, "UNRESOLVED", source_version="1")
+    try:
+        with pytest.raises(Exception, match="prior consequence state unresolved"):
+            prepare_payment_execution(
+                req, route_id="R1", executor_id="PAYMENT-EXECUTOR-1", resolved_at=now
+            )
+    finally:
+        clear_consequence_state_for_test(req.institutional_operation_id)
