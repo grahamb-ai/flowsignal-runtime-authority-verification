@@ -24,6 +24,7 @@ _LOCK = RLock()
 _POLICIES: dict[str, AuthorityUsagePolicy] = {}
 _RESERVATIONS: dict[str, AuthorityUsageReservation] = {}
 _SCOPE_RESERVATIONS: dict[str, set[str]] = {}
+_FORMED_INSTITUTIONAL_OPERATIONS: set[str] = set()
 
 # Bounded reference authority for policy registration. Possession of a policy
 # object is not authority to create a new economic usage scope.
@@ -64,6 +65,7 @@ def reserve_authority_usage(
     authority_exercise_id: str,
     execution_attempt_id: str,
     amount_or_units: Decimal | int | None,
+    institutional_operation_id: str | None = None,
 ) -> AuthorityUsageReservation:
     with _LOCK:
         policy = _POLICIES.get(usage_policy_id)
@@ -77,6 +79,7 @@ def reserve_authority_usage(
             execution_attempt_id=execution_attempt_id,
             reserved_amount_or_units=amount_or_units,
             state=AuthorityUsageState.RESERVED,
+            institutional_operation_id=institutional_operation_id,
         )
         existing = _RESERVATIONS.get(reservation_id)
         if existing is not None:
@@ -128,6 +131,7 @@ def _transition(
             execution_attempt_id=current.execution_attempt_id,
             reserved_amount_or_units=current.reserved_amount_or_units,
             state=to_state,
+            institutional_operation_id=current.institutional_operation_id,
         )
         _RESERVATIONS[reservation_id] = updated
         return AuthorityUsageDisposition(
@@ -180,6 +184,20 @@ def get_usage_reservation(reservation_id: str) -> AuthorityUsageReservation | No
         return _RESERVATIONS.get(reservation_id)
 
 
+def claim_institutional_consequence_once(institutional_operation_id: str) -> bool:
+    """Claim one formed consequence for one stable institutional operation.
+
+    This is deliberately process-local reference state, matching the existing
+    R4 reservation boundary. Production settlement idempotency and cross-host
+    durability remain separate qualification obligations.
+    """
+    with _LOCK:
+        if institutional_operation_id in _FORMED_INSTITUTIONAL_OPERATIONS:
+            return False
+        _FORMED_INSTITUTIONAL_OPERATIONS.add(institutional_operation_id)
+        return True
+
+
 def resolve_quarantined_authority_usage(
     reservation_id: str,
     *,
@@ -222,6 +240,7 @@ def resolve_quarantined_authority_usage(
             execution_attempt_id=current.execution_attempt_id,
             reserved_amount_or_units=current.reserved_amount_or_units,
             state=to_state,
+            institutional_operation_id=current.institutional_operation_id,
         )
         _RESERVATIONS[reservation_id] = updated
         from app.engines.outcome_evidence import close_outcome_disposition
@@ -255,3 +274,4 @@ def reset_authority_usage_reference_state_for_test() -> None:
         _POLICIES.clear()
         _RESERVATIONS.clear()
         _SCOPE_RESERVATIONS.clear()
+        _FORMED_INSTITUTIONAL_OPERATIONS.clear()

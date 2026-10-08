@@ -142,6 +142,7 @@ class AuthorityUsageReservation:
     execution_attempt_id: str
     reserved_amount_or_units: Decimal | int | None
     state: AuthorityUsageState
+    institutional_operation_id: str | None = None
 
 
 @dataclass(frozen=True)

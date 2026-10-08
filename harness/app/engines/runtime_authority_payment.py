@@ -107,6 +107,7 @@ def prepare_payment_execution(
         authority_exercise_id=exercise.authority_exercise_id,
         execution_attempt_id=attempt.execution_attempt_id,
         amount_or_units=req.amount,
+        institutional_operation_id=operation.institutional_operation_id,
     )
 
     determination, constraint = issue_authorised_execution_constraint(

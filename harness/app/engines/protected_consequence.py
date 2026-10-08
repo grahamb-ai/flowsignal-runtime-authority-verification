@@ -16,7 +16,13 @@ from app.engines.permit_authority import ExecutionPermit, verify_execution_permi
 from app.engines.rai_execution_registry import get_rai_execution_binding, verify_rai_execution_binding
 from app.engines.final_bind_provenance import verify_final_bind_provenance
 from app.engines.authority_domain import AuthorityUsageState
-from app.engines.authority_usage import consume_authority_usage, get_usage_reservation, quarantine_authority_usage
+from app.engines.authority_usage import (
+    claim_institutional_consequence_once,
+    consume_authority_usage,
+    get_usage_reservation,
+    quarantine_authority_usage,
+    release_authority_usage,
+)
 from app.engines.permit_consumption_store import consume_execution_permit_and_begin_outcome_once
 from app.engines.rollback_anchor_store import claim_execution_anchor_once
 from app.engines.institutional_authority import get_authority_snapshot
@@ -188,6 +194,26 @@ def execute_protected_consequence(
                     evidence_ids=(f"COMMITMENT-INTERVAL-FAILURE:{permit.signature}",),
                 )
                 raise
+
+        if usage_reservation.institutional_operation_id is None:
+            return "DENIED_INSTITUTIONAL_OPERATION_ID_MISSING"
+        if not claim_institutional_consequence_once(
+            usage_reservation.institutional_operation_id
+        ):
+            evidence_id = (
+                "INSTITUTIONAL-OPERATION-ALREADY-FORMED:"
+                f"{usage_reservation.institutional_operation_id}"
+            )
+            record_consequence_outcome(
+                permit_signature=permit.signature,
+                action_binding_hash=attempted_action_binding_hash,
+                outcome="CONSEQUENCE_NOT_FORMED_ALREADY_FORMED",
+            )
+            release_authority_usage(
+                binding.usage_reservation_id,
+                evidence_ids=(evidence_id,),
+            )
+            return "DENIED_INSTITUTIONAL_OPERATION_ALREADY_FORMED"
 
         record_consequence_outcome(
             permit_signature=permit.signature,
