@@ -225,6 +225,17 @@ We will distinguish clearly between:
 
 Where a reproducible new failure of a declared property is confirmed, the goal is to preserve the first failure before remediation and credit the contributor where they wish to be identified.
 
+## Deployed TCS-001 GCP review package
+
+The separately bounded Cloud Run and Firestore result for the externally
+supplied coupled-capacity challenge is preserved under
+[`evidence/TCS-001-GCP`](evidence/TCS-001-GCP/).
+
+That package freezes the executable image, environment, declared claim,
+falsifiers, adversarial scope, deployed results, evidence hashes and
+reproduction procedure. Independent reproduction is invited and is not yet
+claimed.
+
 ---
 
 **FlowSignal™ — EXECUTE WITH AUTHORITY. DEFEND WITH EVIDENCE.**
