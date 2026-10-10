@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="3" time="0.070" timestamp="2026-10-10T14:39:30.787887+01:00" hostname="a7587b3f0411"><testcase classname="harness.tests.test_tcs001_coupled_capacity" name="test_tcs001_sequential_second_movement_is_refused_before_formation" time="0.006"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="harness.tests.test_tcs001_coupled_capacity" name="test_tcs001_concurrent_movements_cannot_both_reserve_capacity" time="0.003"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="harness.tests.test_tcs001_coupled_capacity" name="test_tcs001_combined_burden_12_is_refused" time="0.000"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase></testsuite></testsuites>
