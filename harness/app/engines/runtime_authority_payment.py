@@ -42,6 +42,7 @@ from app.engines.rai_execution_registry import (
     _RAI_BINDING_REGISTRATION_CAPABILITY,
     register_rai_execution_binding,
 )
+from app.engines.cross_domain_authority import current_authority_binding
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,15 @@ def mint_rai_bound_execution_permit(
         attempted_at=bind_at,
     )
     attempted_hash = action_binding_hash(attempt)
+    external_status, external_binding = current_authority_binding(
+        authority_id=req.mandate_id,
+        authority_subject=req.principal_id,
+        action=req.action,
+        resource=req.target,
+        at=bind_at,
+    )
+    if external_status in {"REVOKED", "UNRESOLVED"}:
+        return None
     permit = issue_execution_permit(
         authority_receipt_id=prepared.determination.determination_id,
         action_binding_hash=attempted_hash,
@@ -203,6 +213,15 @@ def mint_rai_bound_execution_permit(
         rai_protected_operation_id=prepared.operation.operation_id,
         rai_authority_exercise_id=prepared.determination.authority_exercise_id,
         rai_execution_attempt_id=prepared.determination.execution_attempt_id,
+        external_authority_issuer=(external_binding.issuer_domain if external_binding else None),
+        external_authority_epoch=(external_binding.authority_epoch if external_binding else None),
+        external_authority_observation_digest=(external_binding.observation_digest if external_binding else None),
+        external_authority_policy_id=(external_binding.policy_id if external_binding else None),
+        external_authority_evidence_digest=(external_binding.evidence_digest if external_binding else None),
+        external_authority_root_id=(external_binding.root_authority_id if external_binding else None),
+        external_authority_parent_id=(external_binding.parent_authority_id if external_binding else None),
+        external_authority_action=(req.action if external_binding else None),
+        external_authority_resource=(req.target if external_binding else None),
         mint_capability=_GATEWAY_MINT_CAPABILITY,
     )
     if permit is None:

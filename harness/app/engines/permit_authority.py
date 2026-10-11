@@ -38,6 +38,15 @@ class ExecutionPermit:
     rai_protected_operation_id: str | None = None
     rai_authority_exercise_id: str | None = None
     rai_execution_attempt_id: str | None = None
+    external_authority_issuer: str | None = None
+    external_authority_epoch: int | None = None
+    external_authority_observation_digest: str | None = None
+    external_authority_policy_id: str | None = None
+    external_authority_evidence_digest: str | None = None
+    external_authority_root_id: str | None = None
+    external_authority_parent_id: str | None = None
+    external_authority_action: str | None = None
+    external_authority_resource: str | None = None
 
 
 def _payload(**fields) -> bytes:
@@ -70,6 +79,15 @@ def issue_execution_permit(
     rai_protected_operation_id: str | None = None,
     rai_authority_exercise_id: str | None = None,
     rai_execution_attempt_id: str | None = None,
+    external_authority_issuer: str | None = None,
+    external_authority_epoch: int | None = None,
+    external_authority_observation_digest: str | None = None,
+    external_authority_policy_id: str | None = None,
+    external_authority_evidence_digest: str | None = None,
+    external_authority_root_id: str | None = None,
+    external_authority_parent_id: str | None = None,
+    external_authority_action: str | None = None,
+    external_authority_resource: str | None = None,
     mint_capability: object | None = None,
 ) -> ExecutionPermit | None:
     if mint_capability is not _GATEWAY_MINT_CAPABILITY or valid_until is None:
@@ -97,6 +115,15 @@ def issue_execution_permit(
         rai_protected_operation_id=rai_protected_operation_id,
         rai_authority_exercise_id=rai_authority_exercise_id,
         rai_execution_attempt_id=rai_execution_attempt_id,
+        external_authority_issuer=external_authority_issuer,
+        external_authority_epoch=external_authority_epoch,
+        external_authority_observation_digest=external_authority_observation_digest,
+        external_authority_policy_id=external_authority_policy_id,
+        external_authority_evidence_digest=external_authority_evidence_digest,
+        external_authority_root_id=external_authority_root_id,
+        external_authority_parent_id=external_authority_parent_id,
+        external_authority_action=external_authority_action,
+        external_authority_resource=external_authority_resource,
     )
     return ExecutionPermit(**fields, signature=_sign(**fields))
 
@@ -112,7 +139,12 @@ def verify_execution_permit(permit: ExecutionPermit) -> bool:
             "authority_semantics_version", "authority_semantics_definition_id",
             "authority_semantics_source_id", "issued_at", "valid_until",
             "rai_determination_id", "rai_constraint_id", "rai_protected_operation_id",
-            "rai_authority_exercise_id", "rai_execution_attempt_id"
+            "rai_authority_exercise_id", "rai_execution_attempt_id",
+            "external_authority_issuer", "external_authority_epoch",
+            "external_authority_observation_digest", "external_authority_policy_id",
+            "external_authority_evidence_digest", "external_authority_root_id",
+            "external_authority_parent_id", "external_authority_action",
+            "external_authority_resource"
         )
     }
     return hmac.compare_digest(_sign(**fields), permit.signature)

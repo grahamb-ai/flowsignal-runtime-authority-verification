@@ -20,6 +20,7 @@ from app.engines.authority_usage import consume_authority_usage, get_usage_reser
 from app.engines.permit_consumption_store import consume_execution_permit_and_begin_outcome_once
 from app.engines.rollback_anchor_store import claim_execution_anchor_once
 from app.engines.institutional_authority import get_authority_snapshot
+from app.engines.cross_domain_authority import current_authority_binding
 
 
 def _aware(dt: datetime) -> datetime:
@@ -173,6 +174,33 @@ def execute_protected_consequence(
             return "DENIED_AUTHORITY_SEMANTICS_DEFINITION_MISMATCH"
         if permit.authority_semantics_source_id != current_snapshot.semantics.source_id:
             return "DENIED_AUTHORITY_SEMANTICS_SOURCE_MISMATCH"
+
+        external_status, external_binding = current_authority_binding(
+            authority_id=permit.authority_subject_mandate_id,
+            authority_subject=permit.authority_subject_principal_id,
+            action=permit.external_authority_action or "",
+            resource=permit.external_authority_resource or "",
+            at=datetime.now(timezone.utc),
+        )
+        if external_status == "REVOKED":
+            return "DENIED_CROSS_DOMAIN_AUTHORITY_REVOKED"
+        if external_status == "UNRESOLVED":
+            return "DENIED_CROSS_DOMAIN_AUTHORITY_UNRESOLVED"
+        if external_status == "ACTIVE":
+            if external_binding is None:
+                return "DENIED_CROSS_DOMAIN_AUTHORITY_UNRESOLVED"
+            if (
+                permit.external_authority_issuer != external_binding.issuer_domain
+                or permit.external_authority_epoch != external_binding.authority_epoch
+                or permit.external_authority_observation_digest
+                != external_binding.observation_digest
+                or permit.external_authority_policy_id != external_binding.policy_id
+                or permit.external_authority_evidence_digest
+                != external_binding.evidence_digest
+                or permit.external_authority_root_id != external_binding.root_authority_id
+                or permit.external_authority_parent_id != external_binding.parent_authority_id
+            ):
+                return "DENIED_CROSS_DOMAIN_AUTHORITY_STATE_CHANGED"
 
         if before_formation_hook is not None:
             try:
