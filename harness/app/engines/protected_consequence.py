@@ -151,6 +151,8 @@ def execute_protected_consequence(
         current_snapshot = get_authority_snapshot(permit.authority_subject_mandate_id)
         if current_snapshot is None:
             return "DENIED_AUTHORITATIVE_STATE_MISSING"
+        if current_snapshot.mandate.status != "ACTIVE":
+            return "DENIED_MANDATE_NOT_ACTIVE"
         if permit.authority_subject_principal_id != current_snapshot.mandate.principal_id:
             return "DENIED_AUTHORITY_SUBJECT_PRINCIPAL_MISMATCH"
         if permit.authority_subject_mandate_id != current_snapshot.mandate.mandate_id:
