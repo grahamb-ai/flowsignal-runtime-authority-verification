@@ -1,4 +1,4 @@
-﻿from dataclasses import replace
+from dataclasses import replace
 from pathlib import Path
 
 from harness.runner import load_scenario
@@ -61,7 +61,7 @@ def test_fs_ts_001c_substantive_revocation_after_permit():
         assert outcome != "CONSEQUENCE_FORMED", (
             "FS-TS-001C RED: revoked mandate formed a consequence"
         )
-        assert outcome == "DENIED_AUTHORITY_SNAPSHOT_STALE", (
+        assert outcome == "DENIED_MANDATE_NOT_ACTIVE", (
             f"Unexpected rejection: {outcome}"
         )
     finally:
