@@ -6,8 +6,8 @@ If authority changes after preparation but before final bind, an attempted
 continuation using the prior authority must be refused, no execution permit may
 issue, and no protected consequence may form.
 
-The tested artifact is commit
-`6341c6c267e567d48a4873859b9101c9e74ca978` on branch
+The frozen test artifact was published in commit
+`4339aea26332c398456ed4e5ecb6ab0e5f208039` on branch
 `challenge/fs-cca-001-constitutional-revocation`.
 
 ## Observable pass conditions
@@ -36,4 +36,3 @@ This is a reference-harness claim about the tested FlowSignal final-bind and
 protected-consequence path. It does not establish production certification,
 external settlement non-formation, crash/restart persistence of the in-memory
 authority fence, distributed atomicity, or universal constitutional legitimacy.
-
