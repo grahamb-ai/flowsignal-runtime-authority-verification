@@ -191,6 +191,14 @@ def execute_protected_consequence(
                 )
                 raise
 
+        # The global state guard excludes concurrent transitions, but is
+        # re-entrant in this bounded Python reference implementation. A
+        # same-thread authority transition inside the commitment hook must
+        # therefore invalidate the earlier permit before consequence formation.
+        if get_authority_state_version_unlocked() != permit.authority_state_version:
+            quarantine_authority_usage(binding.usage_reservation_id)
+            return "DENIED_AUTHORITY_STATE_CHANGED_DURING_COMMIT"
+
         # The test hook may mutate institutional authority in this same thread.
         # Revalidate immediately before the represented consequence commits.
         # The institutional guard also serialises concurrent fence transitions
