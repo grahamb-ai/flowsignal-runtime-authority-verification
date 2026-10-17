@@ -1,0 +1,46 @@
+name: FS-AUTH-002 baseline order control
+on:
+  push:
+    branches: [challenge/fs-auth-002-baseline-order-control]
+    paths: [.github/workflows/fs-auth-002-baseline-order.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [normal, reverse]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run unchanged baseline in selected order
+        shell: bash
+        run: |
+          set +e
+          cd harness
+          mapfile -t tests < <(find tests -maxdepth 1 -name 'test_*.py' | sort)
+          if [ "${{ matrix.order }}" = "reverse" ]; then
+            mapfile -t tests < <(printf '%s\n' "${tests[@]}" | tac)
+          fi
+          printf '%s\n' "${tests[@]}" > "../fs-auth-002-baseline-selection-${{ matrix.order }}.txt"
+          git rev-parse HEAD | tee "../fs-auth-002-baseline-${{ matrix.order }}.log"
+          python -m pytest -vv "${tests[@]}" 2>&1 | tee -a "../fs-auth-002-baseline-${{ matrix.order }}.log"
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a "../fs-auth-002-baseline-${{ matrix.order }}.log"
+          exit "${status}"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-002-baseline-${{ matrix.order }}-${{ github.sha }}
+          path: |
+            fs-auth-002-baseline-${{ matrix.order }}.log
+            fs-auth-002-baseline-selection-${{ matrix.order }}.txt
+          retention-days: 90
