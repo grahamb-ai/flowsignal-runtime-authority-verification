@@ -17,7 +17,7 @@ from app.engines.rai_execution_registry import get_rai_execution_binding, verify
 from app.engines.final_bind_provenance import verify_final_bind_provenance
 from app.engines.authority_domain import AuthorityUsageState
 from app.engines.authority_usage import consume_authority_usage, get_usage_reservation, quarantine_authority_usage
-from app.engines.permit_consumption_store import consume_execution_permit_and_begin_outcome_once
+from app.engines.permit_consumption_store import consume_execution_permit_and_begin_outcome_once, is_execution_permit_consumed
 from app.engines.rollback_anchor_store import claim_execution_anchor_once
 from app.engines.institutional_authority import get_authority_snapshot, institutional_authority_commit_guard
 
@@ -108,6 +108,12 @@ def execute_protected_consequence(
         permit_expiry = _aware(datetime.fromisoformat(permit.valid_until))
     except (TypeError, ValueError):
         return "DENIED_EXECUTION_PERMIT_EXPIRY_INVALID"
+
+    # Classify authenticated, exactly-bound, previously consumed permits
+    # before expiry/freshness checks. This read does not consume or mutate.
+    # The atomic consumption below remains the final replay arbiter in races.
+    if is_execution_permit_consumed(permit.signature):
+        return "DENIED_EXECUTION_PERMIT_REPLAY"
 
     if datetime.now(timezone.utc) > permit_expiry:
         return "DENIED_EXECUTION_PERMIT_EXPIRED"
