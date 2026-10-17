@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - challenge/fs-auth-002-post-bind-revocation
+      - remediation/fs-auth-002-post-bind-continuity
     paths:
       - .github/workflows/fs-auth-002.yml
       - harness/tests/test_fs_auth_002_post_bind_revocation.py
+      - harness/app/engines/institutional_authority.py
+      - harness/app/engines/protected_consequence.py
   workflow_dispatch:
 
 permissions:
