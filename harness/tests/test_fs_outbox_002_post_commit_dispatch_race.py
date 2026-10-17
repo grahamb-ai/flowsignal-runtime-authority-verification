@@ -111,3 +111,15 @@ def test_fs_outbox_002_global_revocation_after_commit_must_block_dispatch():
 
 def test_fs_outbox_002_institutional_revocation_after_commit_must_block_dispatch():
     _worker_with_post_commit_pause("institutional")
+
+
+def test_fs_outbox_002_unchanged_authority_allows_simulated_dispatch():
+    permit, h = _authorised_outbox_item()
+    local_outcome = execute_protected_consequence(permit, h)
+    assert local_outcome == "CONSEQUENCE_FORMED", local_outcome
+    assert _dispatch_gate(permit, h) == "DISPATCH_PERMITTED_REFERENCE_ONLY"
+
+
+def test_fs_outbox_002_substituted_action_rejected_at_dispatch():
+    permit, h = _authorised_outbox_item()
+    assert _dispatch_gate(permit, "0" * 64) == "DENIED_DISPATCH_ACTION_BINDING_MISMATCH"
