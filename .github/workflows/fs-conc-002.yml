@@ -1,7 +1,7 @@
 name: FS-CONC-002 Hypothesis stateful challenge
 on:
   push:
-    branches: [challenge/fs-conc-002-hypothesis-stateful]
+    branches: [challenge/fs-conc-002-hypothesis-stateful, remediation/fs-conc-002-stateful-isolation]
     paths:
       - .github/workflows/fs-conc-002.yml
       - harness/tests/test_fs_conc_002_hypothesis_stateful.py
