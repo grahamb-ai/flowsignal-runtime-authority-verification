@@ -1,0 +1,87 @@
+name: FS-AUTH-002-005 consolidated qualification
+on:
+  push:
+    branches: [integration/fs-auth-002-005-review-candidate]
+    paths:
+      - .github/workflows/fs-auth-consolidated.yml
+      - harness/app/engines/**
+      - harness/tests/test_fs_auth_*.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [normal, reverse, seed-11, seed-29, seed-73, seed-101, seed-307]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run complete test suite in selected file order
+        shell: bash
+        env:
+          ORDER: ${{ matrix.order }}
+        run: |
+          set +e
+          cd harness
+          python - <<'PY'
+          import os, random
+          from pathlib import Path
+          paths = sorted(str(p) for p in Path('tests').glob('test_*.py'))
+          order = os.environ['ORDER']
+          if order == 'reverse':
+              paths.reverse()
+          elif order.startswith('seed-'):
+              random.Random(int(order.split('-')[1])).shuffle(paths)
+          Path('../fs-auth-order.txt').write_text('\n'.join(paths)+'\n')
+          PY
+          mapfile -t tests < ../fs-auth-order.txt
+          git rev-parse HEAD | tee "../fs-auth-${ORDER}.log"
+          python -m pytest -vv "${tests[@]}" 2>&1 | tee -a "../fs-auth-${ORDER}.log"
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a "../fs-auth-${ORDER}.log"
+          exit "${status}"
+      - name: Preserve qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-consolidated-${{ matrix.order }}-${{ github.sha }}
+          path: |
+            fs-auth-${{ matrix.order }}.log
+            fs-auth-order.txt
+          retention-days: 90
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [test_fs_auth_002_post_bind_revocation.py, test_fs_auth_002_concurrent_transition.py, test_fs_auth_003_global_version_commit.py, test_fs_auth_004_dual_state_commit.py, test_fs_auth_005_denial_outcome_evidence.py]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run isolated challenge
+        shell: bash
+        run: |
+          set +e
+          cd harness
+          python -m pytest -vv -s "tests/${{ matrix.test }}" 2>&1 | tee "../${{ matrix.test }}.log"
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a "../${{ matrix.test }}.log"
+          exit "${status}"
+      - name: Preserve isolated evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-isolated-${{ matrix.test }}-${{ github.sha }}
+          path: ${{ matrix.test }}.log
+          retention-days: 90
