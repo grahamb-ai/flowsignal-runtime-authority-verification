@@ -4,7 +4,9 @@ Date: 2026-10-17
 
 ## Candidate result
 
-`9 passed in 0.04s`
+Reference-model candidate: `9 passed in 0.04s`.
+
+Reference model plus CARLA adapter contract: `13 passed in 0.04s`.
 
 The candidate produced the following bounded behaviours:
 
@@ -21,17 +23,30 @@ The candidate produced the following bounded behaviours:
 
 ## Adjacent-suite disclosure
 
-Full suite with candidate: `125 passed, 27 failed`.
+Full suite with candidate and CARLA adapter: `129 passed, 27 failed`.
 
 Full suite excluding candidate: `116 passed, 27 failed`.
 
 The same 27 pre-existing order/state-contamination failures remain. FS-AV-001
-adds nine passing tests and introduces no additional full-suite failure. This
-does not close or conceal the existing suite-state defect.
+and its adapter add thirteen passing tests and introduce no additional
+full-suite failure. This does not close or conceal the existing suite-state
+defect.
+
+## CARLA status
+
+The four adapter contract tests establish control mapping, fail-closed braking,
+state capture and evidence-digest behaviour against an interface-equivalent
+fake CARLA surface.
+
+No live CARLA simulation was run: the CARLA Python package and server were not
+available in the test environment. Therefore this result does not establish
+vehicle dynamics, scenario completion, collision avoidance or construction-
+zone non-entry in CARLA.
 
 ## Classification
 
-GREEN WITHIN DECLARED DETERMINISTIC REFERENCE-MODEL BOUNDARY.
+GREEN WITHIN THE DECLARED DETERMINISTIC REFERENCE-MODEL AND ADAPTER-CONTRACT
+BOUNDARIES.
 
 SIMULATOR, PERCEPTION, PLANNER, ACTUATOR, VEHICLE-DYNAMICS AND FUNCTIONAL-
 SAFETY VALIDATION REMAIN OPEN.
