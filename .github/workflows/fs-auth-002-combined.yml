@@ -1,0 +1,88 @@
+name: FS-AUTH-002 combined qualification
+on:
+  push:
+    branches: [integration/fs-auth-002-qualified-candidate]
+    paths:
+      - .github/workflows/fs-auth-002-combined.yml
+      - harness/tests/conftest.py
+      - harness/app/engines/**
+      - harness/tests/test_fs_auth_002_*.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [normal, reverse, seed-11, seed-29, seed-73]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run all test files in selected order
+        shell: bash
+        env:
+          ORDER: ${{ matrix.order }}
+        run: |
+          set +e
+          cd harness
+          python - <<'PY'
+          import os, random
+          from pathlib import Path
+          paths = sorted(str(p) for p in Path('tests').glob('test_*.py'))
+          order = os.environ['ORDER']
+          if order == 'reverse':
+              paths.reverse()
+          elif order.startswith('seed-'):
+              random.Random(int(order.split('-')[1])).shuffle(paths)
+          Path('../fs-auth-002-order.txt').write_text('\n'.join(paths)+'\n')
+          PY
+          mapfile -t tests < ../fs-auth-002-order.txt
+          git rev-parse HEAD | tee "../fs-auth-002-${ORDER}.log"
+          python -m pytest -vv "${tests[@]}" 2>&1 | tee -a "../fs-auth-002-${ORDER}.log"
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a "../fs-auth-002-${ORDER}.log"
+          exit "${status}"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-002-combined-${{ matrix.order }}-${{ github.sha }}
+          path: |
+            fs-auth-002-${{ matrix.order }}.log
+            fs-auth-002-order.txt
+          retention-days: 90
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [test_fs_auth_002_post_bind_revocation.py, test_fs_auth_002_concurrent_transition.py]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run isolated hostile test
+        shell: bash
+        run: |
+          set +e
+          cd harness
+          python -m pytest -vv -s "tests/${{ matrix.test }}" 2>&1 | tee "../${{ matrix.test }}.log"
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a "../${{ matrix.test }}.log"
+          exit "${status}"
+      - name: Preserve isolated evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-002-isolated-${{ matrix.test }}-${{ github.sha }}
+          path: ${{ matrix.test }}.log
+          retention-days: 90
