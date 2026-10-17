@@ -19,7 +19,7 @@ from app.engines.authority_domain import AuthorityUsageState
 from app.engines.authority_usage import consume_authority_usage, get_usage_reservation, quarantine_authority_usage
 from app.engines.permit_consumption_store import consume_execution_permit_and_begin_outcome_once
 from app.engines.rollback_anchor_store import claim_execution_anchor_once
-from app.engines.institutional_authority import get_authority_snapshot
+from app.engines.institutional_authority import get_authority_snapshot, institutional_authority_commit_guard
 
 
 def _aware(dt: datetime) -> datetime:
@@ -112,7 +112,7 @@ def execute_protected_consequence(
     if datetime.now(timezone.utc) > permit_expiry:
         return "DENIED_EXECUTION_PERMIT_EXPIRED"
 
-    with authority_state_guard():
+    with authority_state_guard(), institutional_authority_commit_guard():
         if datetime.now(timezone.utc) > permit_expiry:
             return "DENIED_EXECUTION_PERMIT_EXPIRED"
 
@@ -190,6 +190,20 @@ def execute_protected_consequence(
                     evidence_ids=(f"COMMITMENT-INTERVAL-FAILURE:{permit.signature}",),
                 )
                 raise
+
+        # The test hook may mutate institutional authority in this same thread.
+        # Revalidate immediately before the represented consequence commits.
+        # The institutional guard also serialises concurrent fence transitions
+        # against this bounded in-process commitment interval.
+        commit_snapshot = get_authority_snapshot(permit.authority_subject_mandate_id)
+        if commit_snapshot is None or commit_snapshot.mandate.status != "ACTIVE":
+            quarantine_authority_usage(binding.usage_reservation_id)
+            return "DENIED_AUTHORITY_CHANGED_DURING_COMMIT"
+        if (commit_snapshot.snapshot_id != permit.authority_snapshot_id
+                or commit_snapshot.authority_fence != permit.authority_fence
+                or commit_snapshot.authority_epoch_id != permit.authority_epoch_id):
+            quarantine_authority_usage(binding.usage_reservation_id)
+            return "DENIED_AUTHORITY_CHANGED_DURING_COMMIT"
 
         record_consequence_outcome(
             permit_signature=permit.signature,
