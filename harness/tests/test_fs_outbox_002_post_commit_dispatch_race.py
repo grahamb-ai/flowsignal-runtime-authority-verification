@@ -12,9 +12,9 @@ from app.engines.runtime_authority_payment import (
 )
 from app.engines.execution_gateway import ExecutionAttempt, action_binding_hash
 from app.engines.protected_consequence import execute_protected_consequence
-from app.engines.authority_store import advance_authority_state_version
+from app.engines.authority_store import advance_authority_state_version, get_authority_state_version
 from app.engines.institutional_authority import (
-    advance_authority_fence,
+    advance_authority_fence, get_authority_snapshot,
     issue_authority_fence_transition_capability_for_test,
 )
 
@@ -60,6 +60,26 @@ def _revocation(kind, permit):
         )
 
 
+def _dispatch_gate(permit, action_hash):
+    """Bounded read-only authority gate at the simulated external dispatch point.
+
+    This does not provide atomicity with a remote API call. A revocation racing
+    after these reads remains outside the guarantee of this candidate.
+    """
+    if action_hash != permit.action_binding_hash:
+        return "DENIED_DISPATCH_ACTION_BINDING_MISMATCH"
+    if get_authority_state_version() != permit.authority_state_version:
+        return "DENIED_DISPATCH_GLOBAL_AUTHORITY_STALE"
+    snapshot = get_authority_snapshot(permit.authority_subject_mandate_id)
+    if snapshot is None or snapshot.mandate.status != "ACTIVE":
+        return "DENIED_DISPATCH_INSTITUTIONAL_AUTHORITY_CHANGED"
+    if (snapshot.snapshot_id != permit.authority_snapshot_id
+            or snapshot.authority_fence != permit.authority_fence
+            or snapshot.authority_epoch_id != permit.authority_epoch_id):
+        return "DENIED_DISPATCH_INSTITUTIONAL_AUTHORITY_CHANGED"
+    return "DISPATCH_PERMITTED_REFERENCE_ONLY"
+
+
 def _worker_with_post_commit_pause(kind):
     permit, h = _authorised_outbox_item()
     actuator_calls = []
@@ -72,11 +92,13 @@ def _worker_with_post_commit_pause(kind):
     # commitment but BEFORE the worker calls the external actuator.
     _revocation(kind, permit)
 
-    # Existing FS-OUTBOX-001 reference worker: local formation alone is
-    # sufficient to dispatch. Deliberately do not add a check in this challenge.
-    if local_outcome == "CONSEQUENCE_FORMED":
+    # The local commitment is insufficient for dispatch. Revalidate current
+    # authority at this distinct simulated boundary.
+    dispatch_decision = _dispatch_gate(permit, h)
+    if local_outcome == "CONSEQUENCE_FORMED" and dispatch_decision == "DISPATCH_PERMITTED_REFERENCE_ONLY":
         actuator_calls.append(h)
 
+    assert dispatch_decision.startswith("DENIED_DISPATCH_"), dispatch_decision
     assert actuator_calls == [], (
         f"FS-OUTBOX-002 FIRST RED: {kind} authority revoked after local "
         f"commit but external actuator received dispatch"
