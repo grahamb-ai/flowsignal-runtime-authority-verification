@@ -59,6 +59,30 @@ def _connect() -> sqlite3.Connection:
     return connection
 
 
+def is_execution_permit_consumed(signature: str) -> bool:
+    """Read-only replay classification for an already authenticated permit.
+
+    Never mints, consumes or modifies a permit or outcome. A missing store is
+    treated as not consumed; the normal consumption path remains authoritative.
+    """
+    path = _store_path()
+    if not path.exists():
+        return False
+    connection = sqlite3.connect(path, timeout=5.0)
+    try:
+        row = connection.execute(
+            "SELECT 1 FROM consumed_execution_permits WHERE signature = ? LIMIT 1",
+            (signature,),
+        ).fetchone()
+        return row is not None
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower():
+            return False
+        raise
+    finally:
+        connection.close()
+
+
 def consume_execution_permit_once(signature: str) -> bool:
     """Atomically record one permit signature in the reference durable store."""
     connection = _connect()
