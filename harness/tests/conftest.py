@@ -2,6 +2,7 @@
 
 from app.engines import institutional_authority as authority
 from app.engines import authority_evidence_adapters as adapters
+from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
 
 
 @pytest.fixture(autouse=True)
@@ -11,6 +12,9 @@ def isolate_authoritative_reference_state():
     Preserve within-test transitions and restore in-memory state
     after each independent test. Does not reset SQLite evidence.
     """
+
+    # Isolate aggregate usage between tests, never between exercises in one test.
+    reset_authority_usage_reference_state_for_test()
 
     with authority._LOCK:
         original_authority = {
@@ -32,6 +36,7 @@ def isolate_authoritative_reference_state():
     try:
         yield
     finally:
+        reset_authority_usage_reference_state_for_test()
         with adapters._LOCK:
             adapters._ACTORS.clear()
             adapters._ACTORS.update(original_actors)
