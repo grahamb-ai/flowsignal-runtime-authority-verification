@@ -55,7 +55,13 @@ def run():
         "metadata[experiment]": "FS-STRIPE-001",
     }
     status, intent = call("POST", "/payment_intents", fields, f"fs-stripe-001-create-{case_id}")
-    assert status == 200, f"create failed: HTTP {status} {intent.get('error', {}).get('code')}"
+    if status != 200:
+        err = intent.get("error", {})
+        print(json.dumps({"stage": "create_rejected", "http_status": status,
+                          "type": err.get("type"), "code": err.get("code"),
+                          "param": err.get("param"), "message": err.get("message"),
+                          "request_log_url": err.get("request_log_url")}), flush=True)
+        raise AssertionError(f"create rejected by Stripe: HTTP {status}")
     pid = intent["id"]
     ensure_status(intent, "requires_capture", "manual authorisation")
     print(json.dumps({"case": case_id, "stage": "authorised", "id": pid, "status": intent["status"], "livemode": intent["livemode"]}))
