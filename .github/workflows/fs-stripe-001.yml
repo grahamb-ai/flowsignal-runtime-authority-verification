@@ -1,0 +1,44 @@
+name: FS-STRIPE-001 provider sandbox lifecycle
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-sandbox:
+    if: github.ref == 'refs/heads/challenge/fs-stripe-001-manual-capture-sandbox'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sandbox key without printing it
+        shell: bash
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          if [ -z "$STRIPE_TEST_SECRET_KEY" ]; then
+            echo "Missing STRIPE_TEST_SECRET_KEY"
+            exit 2
+          fi
+          if [[ "$STRIPE_TEST_SECRET_KEY" != sk_test_* && "$STRIPE_TEST_SECRET_KEY" != rk_test_* ]]; then
+            echo "Refusing non-test credential"
+            exit 2
+          fi
+      - name: Run provider sandbox experiment
+        shell: bash
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          set +e
+          git rev-parse HEAD | tee fs-stripe-001.log
+          python harness/experiments/fs_stripe_001.py 2>&1 | tee -a fs-stripe-001.log
+          status=${PIPESTATUS[0]}
+          echo "experiment_exit_status=${status}" | tee -a fs-stripe-001.log
+          exit "$status"
+      - name: Preserve provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-001-provider-evidence-${{ github.sha }}-${{ github.run_id }}
+          path: fs-stripe-001.log
+          retention-days: 90
