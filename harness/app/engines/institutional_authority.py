@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from decimal import Decimal
+from contextlib import contextmanager
 from threading import RLock
 
 
@@ -43,6 +44,14 @@ class AuthoritySnapshot:
 
 
 _LOCK = RLock()
+
+
+@contextmanager
+def institutional_authority_commit_guard():
+    """Reference-only serialisation of fence transitions with protected commit."""
+    with _LOCK:
+        yield
+
 _EPOCH_ID = "AUTH-EPOCH-001"
 _USAGE_WINDOW_ID = "DAY-001"
 _SOURCE_ID = "INSTITUTIONAL-AUTHORITY-STORE-001"

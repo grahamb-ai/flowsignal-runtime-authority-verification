@@ -1,0 +1,37 @@
+name: FS-AUTH-003 global-version hostile challenge
+on:
+  push:
+    branches: [challenge/fs-auth-003-global-version-commit-race]
+    paths:
+      - .github/workflows/fs-auth-003.yml
+      - harness/tests/test_fs_auth_003_global_version_commit.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hostile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r harness/requirements.txt
+      - name: Run isolated hostile challenge
+        shell: bash
+        run: |
+          set +e
+          cd harness
+          git rev-parse HEAD | tee ../fs-auth-003-first-run.log
+          python -m pytest -vv -s tests/test_fs_auth_003_global_version_commit.py 2>&1 | tee -a ../fs-auth-003-first-run.log
+          status=${PIPESTATUS[0]}
+          echo "pytest_exit_status=${status}" | tee -a ../fs-auth-003-first-run.log
+          exit "${status}"
+      - name: Preserve original evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-auth-003-first-run-${{ github.sha }}
+          path: fs-auth-003-first-run.log
+          retention-days: 90
