@@ -47,7 +47,6 @@ def run():
         "amount": "100",
         "currency": "gbp",
         "payment_method": "pm_card_visa",
-        "payment_method_types[]": "card",
         "capture_method": "manual",
         "confirm": "true",
         "description": "FS-STRIPE-001 isolated test",
