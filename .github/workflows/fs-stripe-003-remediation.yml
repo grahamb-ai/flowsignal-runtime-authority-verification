@@ -1,0 +1,39 @@
+name: FS-STRIPE-003 pre-dispatch remediation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-sandbox:
+    if: github.ref == 'refs/heads/remediation/fs-stripe-003-pre-dispatch-revalidation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sandbox-only credential
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          if [[ "$STRIPE_TEST_SECRET_KEY" != rk_test_* && "$STRIPE_TEST_SECRET_KEY" != sk_test_* ]]; then
+            echo "Missing or non-test credential"; exit 2
+          fi
+      - name: Run corrected pre-dispatch qualification
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          set +e
+          git rev-parse HEAD | tee fs-stripe-003-remediation.log
+          python harness/experiments/fs_stripe_003.py 2>&1 | tee -a fs-stripe-003-remediation.log
+          result=${PIPESTATUS[0]}
+          echo "experiment_exit_status=${result}" | tee -a fs-stripe-003-remediation.log
+          exit "$result"
+      - name: Preserve corrected evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-003-remediation-${{ github.sha }}-${{ github.run_id }}
+          path: fs-stripe-003-remediation.log
+          retention-days: 90
