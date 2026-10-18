@@ -1,0 +1,40 @@
+name: FS-STRIPE-002 bounded provider orderings
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-sandbox:
+    if: github.ref == 'refs/heads/challenge/fs-stripe-002-revocation-capture-race'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate test-only credential
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          if [[ "$STRIPE_TEST_SECRET_KEY" != rk_test_* && "$STRIPE_TEST_SECRET_KEY" != sk_test_* ]]; then
+            echo "Missing or non-test credential"
+            exit 2
+          fi
+      - name: Run bounded Stripe provider orderings
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          set +e
+          git rev-parse HEAD | tee fs-stripe-002.log
+          python harness/experiments/fs_stripe_002.py 2>&1 | tee -a fs-stripe-002.log
+          result=${PIPESTATUS[0]}
+          echo "experiment_exit_status=${result}" | tee -a fs-stripe-002.log
+          exit "$result"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-002-evidence-${{ github.sha }}-${{ github.run_id }}
+          path: fs-stripe-002.log
+          retention-days: 90
