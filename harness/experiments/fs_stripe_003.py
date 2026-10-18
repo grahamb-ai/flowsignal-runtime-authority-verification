@@ -51,21 +51,30 @@ def main():
     # Deterministic injection after the check but before the HTTP request.
     authority_version=2
     record(stage="injected_revocation",current_version=authority_version,previous_version=checked_version)
-    # INTENTIONAL DEFECT: no second check, capture still sent.
-    code,result=api("POST",f"/payment_intents/{pid}/capture",{},
-                    "fs-stripe-003-capture-"+token)
-    record(stage="capture_response",http=code,status=result.get("status"),
-           error_code=result.get("error",{}).get("code"))
-    code,final=api("GET",f"/payment_intents/{pid}")
-    assert code==200
-    record(stage="provider_final",status=final.get("status"),livemode=final.get("livemode"),
-           payment_intent_id=pid)
-    # Preserve the actual breach as an intentional RED, not a false GREEN.
-    assert final.get("status")!="succeeded", (
-        "FS-STRIPE-003 FIRST RED: Stripe captured after authority version "
-        "changed inside gateway-check/dispatch interval"
-    )
-    record(stage="qualification",result="NO_POST_REVOCATION_CAPTURE_OBSERVED")
+    # Remediation: check current authority again immediately before dispatch.
+    # This closes the injected *pre-dispatch* gap in the bounded dispatcher.
+    # It does not make Stripe capture atomic with a remote revocation.
+    dispatch_sent = False
+    if checked_version != authority_version:
+        record(stage="dispatch_refused", checked_version=checked_version,
+               current_version=authority_version, dispatch_sent=False)
+        code, cancelled = api("POST", f"/payment_intents/{pid}/cancel",
+                              {"cancellation_reason": "requested_by_customer"},
+                              "fs-stripe-003-cancel-" + token)
+        assert code == 200 and cancelled.get("status") == "canceled"
+    else:
+        dispatch_sent = True
+        code, captured = api("POST", f"/payment_intents/{pid}/capture", {},
+                             "fs-stripe-003-capture-" + token)
+        record(stage="capture_response", http=code, status=captured.get("status"))
+    code, final = api("GET", f"/payment_intents/{pid}")
+    assert code == 200
+    record(stage="provider_final", status=final.get("status"),
+           livemode=final.get("livemode"), payment_intent_id=pid)
+    assert not dispatch_sent
+    assert final.get("status") == "canceled"
+    record(stage="qualification", result="PASS_BOUNDED_PRE_DISPATCH_REVALIDATION",
+           limitation="Simulated authority version; no independent authority service or atomic external capture enforcement")
 
 if __name__=="__main__":
     main()
