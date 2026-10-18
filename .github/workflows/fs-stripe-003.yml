@@ -1,0 +1,39 @@
+name: FS-STRIPE-003 first-red in-flight revocation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-sandbox:
+    if: github.ref == 'refs/heads/challenge/fs-stripe-003-inflight-revocation-first-red'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify test-only credential
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          if [[ "$STRIPE_TEST_SECRET_KEY" != rk_test_* && "$STRIPE_TEST_SECRET_KEY" != sk_test_* ]]; then
+            echo "Missing or non-test credential"; exit 2
+          fi
+      - name: Run and retain intentional first RED
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          set +e
+          git rev-parse HEAD | tee fs-stripe-003.log
+          python harness/experiments/fs_stripe_003.py 2>&1 | tee -a fs-stripe-003.log
+          result=${PIPESTATUS[0]}
+          echo "experiment_exit_status=${result}" | tee -a fs-stripe-003.log
+          exit "$result"
+      - name: Preserve original evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-003-first-red-${{ github.sha }}-${{ github.run_id }}
+          path: fs-stripe-003.log
+          retention-days: 90
