@@ -39,8 +39,8 @@ def ensure_status(obj, expected, stage):
 
 
 def run():
-    if not KEY.startswith("sk_test_"):
-        raise RuntimeError("STRIPE_TEST_SECRET_KEY must be a test secret (sk_test_)")
+    if not KEY.startswith(("sk_test_", "rk_test_")):
+        raise RuntimeError("STRIPE_TEST_SECRET_KEY must be a test secret (sk_test_ or rk_test_)")
     case_id = uuid.uuid4().hex
     # Card test PaymentMethod is a Stripe fixture, not real card data.
     fields = {
