@@ -19,7 +19,7 @@ jobs:
             echo "Missing STRIPE_TEST_SECRET_KEY. Add a restricted test key to the stripe-sandbox environment."
             exit 2
           fi
-          if [[ "$STRIPE_TEST_SECRET_KEY" != sk_test_* ]]; then
+          if [[ "$STRIPE_TEST_SECRET_KEY" != sk_test_* && "$STRIPE_TEST_SECRET_KEY" != rk_test_* ]]; then
             echo "Refusing to run: test key required."
             exit 2
           fi
