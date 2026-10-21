@@ -1821,3 +1821,107 @@ def test_semantic_provenance_substitution_on_valid_rai_permit_cannot_form_protec
         "SEMANTIC PROVENANCE SUBSTITUTION FAILURE: attacker-rewritten semantic "
         "definition/source provenance survived permit integrity verification"
     )
+
+
+def test_prelaunch_final_bind_grant_cannot_be_retargeted_to_different_action_binding():
+    """Pre-launch challenge: successful final-bind must remain bound to the exact action later permitted."""
+    from datetime import datetime, timedelta, timezone
+    from app.engines.authority_store import get_authority_state_version
+    from app.engines.institutional_authority import get_authority_snapshot
+    from app.engines.permit_authority import _GATEWAY_MINT_CAPABILITY, issue_execution_permit
+    from app.engines.final_bind_provenance import (
+        _FINAL_BIND_PROVENANCE_ISSUANCE_CAPABILITY,
+        establish_final_bind_provenance,
+    )
+    from app.engines.rai_execution_registry import (
+        _RAI_BINDING_REGISTRATION_CAPABILITY,
+        register_rai_execution_binding,
+    )
+
+    req = load_scenario(SCENARIO, rebase_to_now=False)
+    prepared = prepare_payment_execution(
+        req,
+        route_id="R1",
+        executor_id="PAYMENT-EXECUTOR-1",
+        resolved_at=req.requested_execution_time,
+    )
+
+    # Establish a genuine successful final-bind for the original proposal.
+    final = final_bind_payment(
+        req,
+        prepared,
+        bind_at=req.requested_execution_time,
+    )
+    assert final.status == "PERMITTED"
+    assert final.causal_grant_id is not None
+
+    # After final-bind, substitute a different action while retaining the
+    # determination/constraint/lineage that belonged to the original action.
+    substituted = _attempt(req)
+    substituted.amount = substituted.amount + 1
+    substituted_hash = action_binding_hash(substituted)
+    original_hash = action_binding_hash(_attempt(req))
+    assert substituted_hash != original_hash
+
+    snapshot = get_authority_snapshot(req.mandate_id)
+    assert snapshot is not None
+
+    permit = issue_execution_permit(
+        authority_receipt_id=prepared.determination.determination_id,
+        action_binding_hash=substituted_hash,
+        authority_state_version=get_authority_state_version(),
+        authority_snapshot_id=snapshot.snapshot_id,
+        authority_subject_principal_id=snapshot.mandate.principal_id,
+        authority_subject_mandate_id=snapshot.mandate.mandate_id,
+        authority_epoch_id=snapshot.authority_epoch_id,
+        authority_fence_scope_key=snapshot.authority_fence_scope_key,
+        authority_fence=snapshot.authority_fence,
+        authoritative_source_id=snapshot.authoritative_source_id,
+        source_competence_root_id=snapshot.source_competence_root_id,
+        authority_semantics_version=snapshot.semantics.version,
+        authority_semantics_definition_id=snapshot.semantics.definition_id,
+        authority_semantics_source_id=snapshot.semantics.source_id,
+        valid_until=(datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat(),
+        rai_determination_id=prepared.determination.determination_id,
+        rai_constraint_id=prepared.constraint.constraint_id,
+        rai_protected_operation_id=prepared.operation.operation_id,
+        rai_authority_exercise_id=prepared.determination.authority_exercise_id,
+        rai_execution_attempt_id=prepared.determination.execution_attempt_id,
+        mint_capability=_GATEWAY_MINT_CAPABILITY,
+    )
+    assert permit is not None
+
+    provenance = establish_final_bind_provenance(
+        determination_id=prepared.determination.determination_id,
+        constraint_id=prepared.constraint.constraint_id,
+        protected_operation_id=prepared.operation.operation_id,
+        authority_exercise_id=prepared.determination.authority_exercise_id,
+        execution_attempt_id=prepared.determination.execution_attempt_id,
+        action_binding_hash=substituted_hash,
+        usage_reservation_id=prepared.usage_reservation_id,
+        permit_signature=permit.signature,
+        causal_grant_id=final.causal_grant_id,
+        issuance_capability=_FINAL_BIND_PROVENANCE_ISSUANCE_CAPABILITY,
+    )
+
+    register_rai_execution_binding(
+        permit_signature=permit.signature,
+        determination_id=prepared.determination.determination_id,
+        constraint_id=prepared.constraint.constraint_id,
+        protected_operation_id=prepared.operation.operation_id,
+        authority_exercise_id=prepared.determination.authority_exercise_id,
+        execution_attempt_id=prepared.determination.execution_attempt_id,
+        action_binding_hash=substituted_hash,
+        usage_reservation_id=prepared.usage_reservation_id,
+        final_bind_provenance_id=provenance.provenance_id,
+        registration_capability=_RAI_BINDING_REGISTRATION_CAPABILITY,
+    )
+
+    outcome = execute_protected_consequence(
+        permit=permit,
+        attempted_action_binding_hash=substituted_hash,
+    )
+    assert outcome != "CONSEQUENCE_FORMED", (
+        "ACTION CORRESPONDENCE FAILURE: a genuine final-bind grant for the "
+        "original proposal was reused to authorise a different action binding"
+    )
