@@ -34,16 +34,19 @@ def service(tmp_path):
         yield (f"http://127.0.0.1:{port}",db)
     finally:
         p.terminate()
-        try:p.communicate(timeout=5)
+        try:
+            _, stderr = p.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             p.kill()
-            p.communicate(timeout=5)
+            _, stderr = p.communicate(timeout=5)
+        if stderr:
+            print("SERVER STDERR TRACE BEGIN\\n" + stderr[-12000:] + "\\nSERVER STDERR TRACE END")
 
 def invoke(service,route):
     address,_=service
     request=Request(f"{address}/{route}",data=b"{}",method="POST",
                     headers={"Content-Type":"application/json"})
-    with urlopen(request,timeout=35) as response:
+    with urlopen(request,timeout=12) as response:
         assert response.status==200
         return json.loads(response.read())
 
