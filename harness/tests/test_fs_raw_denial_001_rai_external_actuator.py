@@ -94,16 +94,17 @@ def test_no_external_grant_after_failed_final_bind(actuator):
         assert code==403 and not result["formed"]
     assert rows(actuator)==[]
 
-def test_true_rai_final_bind_forms_exactly_one_external_reference_effect(actuator):
+@pytest.mark.parametrize("route,other_route",[("/execute-a","/execute-b"),("/execute-b","/execute-a")])
+def test_true_rai_final_bind_forms_exactly_one_external_reference_effect(actuator,route,other_route):
     req=request()
     permit=mint(req)
     assert permit is not None
     envelope=export_final_bind(permit,bridge_key=KEY)
     assert envelope is not None
-    code,result=post(actuator,"/execute-a",envelope,permit.action_binding_hash)
+    code,result=post(actuator,route,envelope,permit.action_binding_hash)
     assert (code,result["status"])==(200,"CONSEQUENCE_FORMED")
-    assert rows(actuator)==[(permit.signature,permit.action_binding_hash,"/execute-a")]
-    code,replay=post(actuator,"/execute-b",envelope,permit.action_binding_hash)
+    assert rows(actuator)==[(permit.signature,permit.action_binding_hash,route)]
+    code,replay=post(actuator,other_route,envelope,permit.action_binding_hash)
     assert (code,replay["status"])==(409,"REPLAY_REFUSED")
     assert len(rows(actuator))==1
 
@@ -139,14 +140,3 @@ def test_signed_permit_field_tampering_is_refused(actuator):
     assert code==403 and result["status"]=="INVALID_RAI_PERMIT"
     assert rows(actuator)==[]
 
-def test_both_routes_accept_valid_but_distinct_rai_grants(actuator):
-    for route in ("/execute-a","/execute-b"):
-        req=request()
-        # Distinct institutional acts and low amounts prevent duplicate scope
-        # identity while the fixture creates separate real determinations.
-        req=replace(req,institutional_operation_id="TEST-"+route[-1])
-        permit=mint(req)
-        assert permit is not None
-        env=export_final_bind(permit,bridge_key=KEY)
-        assert post(actuator,route,env,permit.action_binding_hash)[0]==200
-    assert len(rows(actuator))==2
