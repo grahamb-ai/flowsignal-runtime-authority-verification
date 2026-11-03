@@ -74,7 +74,12 @@ class StripeTestClient:
         except HTTPError as error:
             # Stripe errors can contain request-identifying details. Surface
             # only error type/status without exposing secret credentials.
-            raise SandboxError(f"Stripe request failed HTTP {error.code}") from None
+            try:
+                problem=json.loads(error.read()).get("error",{})
+                diagnostic={k:problem.get(k) for k in ("type","code","param") if problem.get(k)}
+            except (ValueError,TypeError):
+                diagnostic={}
+            raise SandboxError(f"Stripe request failed HTTP {error.code}; diagnostic={diagnostic}") from None
         except (URLError,OSError,ValueError):
             raise SandboxError("Stripe outcome unresolved; retrieve PaymentIntent before retry") from None
         if obj.get("livemode") is not False:
