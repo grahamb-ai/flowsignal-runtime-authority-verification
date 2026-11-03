@@ -90,7 +90,8 @@ class StripeTestClient:
         return self.call("/payment_intents",{
             "amount":AMOUNT_MINOR,"currency":"gbp","capture_method":"manual",
             "confirm":"true","payment_method":"pm_card_visa",
-            "payment_method_types[]":"card",
+            "automatic_payment_methods[enabled]":"true",
+            "automatic_payment_methods[allow_redirects]":"never",
             "description":"FS-STRIPE-004 isolated £1 reference authority test",
             "metadata[experiment]":"FS-STRIPE-004",
             "metadata[case]":case_id,
