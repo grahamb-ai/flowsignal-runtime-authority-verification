@@ -183,3 +183,24 @@ def test_same_payment_id_with_different_grant_is_refused_without_reexecution(set
     different["envelope"]["permit"]["signature"]="different"
     assert request(setup["url"],"/capture",different)[0]==403
     assert provider_state(setup,body["payment_id"])[2]==1
+
+
+def test_valid_permit_cannot_capture_different_payment_intent(setup):
+    permit,body=case(setup,payment_id="pi_fs006_original")
+    replacement=dict(body,payment_id="pi_fs006_different")
+    code,result=request(setup["url"],"/capture",replacement)
+    assert (code,result["reason"])==(403,"SIGNED_CAPTURE_SCOPE_MISMATCH")
+    assert ledger_rows(setup)==[]
+    assert provider_state(setup,"pi_fs006_original")[2]==0
+
+
+def test_preexisting_generic_rai_export_is_insufficient_for_stripe_capture(setup):
+    permit,body=case(setup)
+    from app.engines.rai_external_export_reference import export_final_bind
+    generic=export_final_bind(permit,bridge_key=BRIDGE_KEY)
+    assert generic is not None
+    payload=dict(body,envelope=generic)
+    code,result=request(setup["url"],"/capture",payload)
+    assert (code,result["reason"])==(403,"SIGNED_CAPTURE_SCOPE_MISMATCH")
+    assert provider_state(setup,body["payment_id"])[2]==0
+    assert ledger_rows(setup)==[]
