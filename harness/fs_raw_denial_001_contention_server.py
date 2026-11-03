@@ -1,19 +1,17 @@
-"""Multi-threaded LOCAL reference server; same authority and SQLite code.
+"""Threaded local source/actuator test servers with isolated imports.
 
-Purpose: stop HTTPServer's sequential request handling from masking genuine
-client contention. Not production concurrency, IAM or external payments.
+Each role runs in its own Python process; importing the actuator's global
+validator hook into the authority source would corrupt source verification.
 """
 import os
 from contextlib import closing
 from http.server import ThreadingHTTPServer
-import fs_raw_denial_001_authority_source as authority
-import fs_raw_denial_001_atomic_source as atomic
-import fs_raw_denial_001_recovery_source as recovery
-import fs_raw_denial_001_atomic_actuator as actuator
 
 ROLE=os.environ["FS_RAI_CONTENTION_ROLE"]
 if __name__=="__main__":
     if ROLE in ("source","crash-source"):
+        import fs_raw_denial_001_authority_source as authority
+        import fs_raw_denial_001_recovery_source as recovery
         authority.init()
         with closing(authority.connect()) as db:
             db.execute("CREATE TABLE IF NOT EXISTS committed_effects ("
@@ -22,14 +20,13 @@ if __name__=="__main__":
         if ROLE=="crash-source":
             import fs_raw_denial_001_crash_source as crash
             authority.connect=crash.instrumented_connect
-            handler=recovery.Handler
-        else:
-            handler=recovery.Handler
+        handler=recovery.Handler
         server=ThreadingHTTPServer(
             ("127.0.0.1",int(os.environ.get("FS_RAI_SOURCE_PORT","0"))),
             handler)
         server.dropped=True
     elif ROLE=="actuator":
+        import fs_raw_denial_001_atomic_actuator as actuator
         server=ThreadingHTTPServer(("127.0.0.1",0),actuator.Handler)
     else:
         raise ValueError("unsupported test role")
