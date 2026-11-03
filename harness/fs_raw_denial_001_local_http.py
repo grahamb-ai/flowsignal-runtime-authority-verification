@@ -5,6 +5,8 @@ provider, customer data, production environment, shell commands, or autonomous
 agent is involved. The parent test independently reads the SQLite outcome DB.
 """
 import json
+import faulthandler
+import sys
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -84,6 +86,8 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 if __name__=="__main__":
+    faulthandler.enable(file=sys.stderr)
+    faulthandler.dump_traceback_later(8,repeat=True,file=sys.stderr)
     server=HTTPServer(("127.0.0.1",0),Handler)
     print(server.server_port,flush=True)
     server.serve_forever()
