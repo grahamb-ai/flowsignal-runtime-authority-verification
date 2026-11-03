@@ -6,6 +6,7 @@ authenticated. This cannot attest cross-host source freshness or resist admin
 rollback. The actuator fails closed if no publication exists.
 """
 import sqlite3
+import time
 from pathlib import Path
 
 def publish_authority_version(db_path, version):
@@ -15,12 +16,14 @@ def publish_authority_version(db_path, version):
         con.execute("BEGIN IMMEDIATE")
         con.execute("CREATE TABLE IF NOT EXISTS authority_fence ("
                     "singleton INTEGER PRIMARY KEY CHECK(singleton=1),"
-                    "version INTEGER NOT NULL)")
-        row=con.execute("SELECT version FROM authority_fence WHERE singleton=1").fetchone()
+                    "version INTEGER NOT NULL, observed_at REAL NOT NULL)")
+        row=con.execute("SELECT version,observed_at FROM authority_fence WHERE singleton=1").fetchone()
         if row is not None and version < row[0]:
             con.execute("ROLLBACK")
             return False
-        con.execute("INSERT INTO authority_fence(singleton,version) VALUES(1,?) "
-                    "ON CONFLICT(singleton) DO UPDATE SET version=excluded.version",(version,))
+        con.execute("INSERT INTO authority_fence(singleton,version,observed_at) VALUES(1,?,?) "
+                    "ON CONFLICT(singleton) DO UPDATE SET "
+                    "version=excluded.version,observed_at=excluded.observed_at",
+                    (version,time.time()))
         con.execute("COMMIT")
     return True
