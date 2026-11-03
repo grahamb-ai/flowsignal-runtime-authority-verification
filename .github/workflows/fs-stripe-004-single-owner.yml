@@ -1,8 +1,5 @@
 name: FS-STRIPE-004 Single Owner Stripe TEST Capture
 on:
-  push:
-    branches:
-      - candidate/fs-stripe-004-single-owner-sandbox
   workflow_dispatch:
 permissions:
   contents: read
