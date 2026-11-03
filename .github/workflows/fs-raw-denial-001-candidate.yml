@@ -1,0 +1,18 @@
+name: FS-RAW-DENIAL-001 candidate adapter integration
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt
+      - name: Run isolated candidate tests; original first RED retained separately
+        run: python -m pytest -q tests/test_fs_raw_denial_001_guarded_adapter_candidate.py
