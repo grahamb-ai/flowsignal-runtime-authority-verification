@@ -33,7 +33,7 @@ def execute(stripe,case,*,revoke_at_dispatch):
     reset_authority_usage_reference_state_for_test()
     with tempfile.TemporaryDirectory(prefix="fs-stripe-005-") as directory:
         with AuthorityOwner(directory) as owner:
-            authorisation=stripe.authorize(case)
+            authorisation=stripe.authorize(case,experiment="FS-STRIPE-005")
             payment_id=authorisation["id"]
             if (authorisation.get("livemode") is not False
                 or authorisation.get("status")!="requires_capture"
@@ -41,7 +41,7 @@ def execute(stripe,case,*,revoke_at_dispatch):
                 or authorisation.get("currency")!="gbp"):
                 raise SandboxError("Unexpected Stripe test authorisation")
             try:
-                permit,grant,req=rai_permit_for_payment(payment_id,return_request=True)
+                permit,grant,req=rai_permit_for_payment(payment_id,return_request=True,experiment="FS-STRIPE-005")
                 stripe.bind(payment_id,permit.action_binding_hash)
                 provider=CaptureProvider(stripe)
                 result=capture_once(
@@ -49,6 +49,7 @@ def execute(stripe,case,*,revoke_at_dispatch):
                     bound_request=req,owner_commit=owner.commit,
                     owner_version=get_authority_state_version,stripe=provider,
                     before_dispatch=advance_authority_state_version if revoke_at_dispatch else None,
+                    expected_experiment="FS-STRIPE-005",
                 )
                 if revoke_at_dispatch:
                     if result.disposition!="REFUSED_STALE_AUTHORITY":
