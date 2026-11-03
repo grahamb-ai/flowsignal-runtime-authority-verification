@@ -1,8 +1,5 @@
 name: FS-STRIPE-005 Single Owner Protected Capture Test
 on:
-  push:
-    branches:
-      - candidate/fs-stripe-005-protected-capture-dispatch
   workflow_dispatch:
 permissions:
   contents: read
