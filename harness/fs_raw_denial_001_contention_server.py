@@ -10,7 +10,6 @@ import fs_raw_denial_001_authority_source as authority
 import fs_raw_denial_001_atomic_source as atomic
 import fs_raw_denial_001_recovery_source as recovery
 import fs_raw_denial_001_atomic_actuator as actuator
-import fs_raw_denial_001_crash_source as crash
 
 ROLE=os.environ["FS_RAI_CONTENTION_ROLE"]
 if __name__=="__main__":
@@ -21,6 +20,7 @@ if __name__=="__main__":
                        "permit_signature TEXT PRIMARY KEY,"
                        "action_binding_hash TEXT NOT NULL,route TEXT NOT NULL)")
         if ROLE=="crash-source":
+            import fs_raw_denial_001_crash_source as crash
             authority.connect=crash.instrumented_connect
             handler=recovery.Handler
         else:
