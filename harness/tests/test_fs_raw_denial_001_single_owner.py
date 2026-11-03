@@ -133,3 +133,19 @@ def test_after_direct_revocation_new_epoch_permit_can_commit(owner):
     code,response=http(owner["url"],body)
     assert (code,response["status"])==(200,"WITNESSED_CONSEQUENCE_FORMED")
     assert len(effect_rows(owner["db"]))==1
+
+
+def test_stale_local_issuer_cannot_override_authoritative_owner(owner,monkeypatch):
+    # Simulate an untrusted local caller suppressing the owner's URL when
+    # minting. It may produce a stale locally signed reference permit, but
+    # this must NEVER create a witness-owned effect after direct revocation.
+    current=advance_authority_state_version()
+    assert current==owner["initial"]+1
+    monkeypatch.delenv("FLOWSIGNAL_AUTHORITY_OWNER_URL")
+    permit,body=form_request()
+    assert permit.authority_state_version==owner["initial"]
+    # Restore delegated view; consequence owner was never changed.
+    monkeypatch.setenv("FLOWSIGNAL_AUTHORITY_OWNER_URL",owner["url"])
+    status,result=http(owner["url"],body)
+    assert (status,result["status"])==(403,"AUTHORITY_STATE_STALE")
+    assert effect_rows(owner["db"])==[]
