@@ -51,8 +51,12 @@ def setup(tmp_path):
                 cwd=ROOT,env=env,stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,text=True)
             assert select.select([process.stdout],[],[],8)[0],"executor startup timeout"
-            url="http://127.0.0.1:"+process.stdout.readline().strip()
-            port=int(url.rsplit(":",1)[1])
+            line=process.stdout.readline().strip()
+            if not line:
+                process.wait(timeout=3)
+                raise AssertionError("executor startup exception: "+process.stderr.read()[-3000:])
+            url="http://127.0.0.1:"+line
+            port=int(line)
             for _ in range(80):
                 if process.poll() is not None:
                     error=process.stderr.read()
