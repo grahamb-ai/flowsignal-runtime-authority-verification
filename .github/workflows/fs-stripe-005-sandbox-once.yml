@@ -1,0 +1,42 @@
+name: FS-STRIPE-005 Single Owner Protected Capture Test
+on:
+  push:
+    branches:
+      - candidate/fs-stripe-005-protected-capture-dispatch
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements.txt
+      - name: Require test mode
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          case "$STRIPE_TEST_SECRET_KEY" in
+            sk_test_*|rk_test_*) echo "Test credential verified" ;;
+            *) echo "Not a test credential"; exit 2 ;;
+          esac
+      - name: Run two bounded PaymentIntents
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          FS_STRIPE_005_EVIDENCE_FILE: fs-stripe-005-evidence.json
+        run: python experiments/fs_stripe_005.py
+      - name: Preserve non-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-005-${{ github.run_id }}
+          path: harness/fs-stripe-005-evidence.json
+          retention-days: 90
