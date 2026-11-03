@@ -10,7 +10,7 @@ from app.engines.stripe_protected_dispatch_reference import (
     DispatchRefused,capture_once
 )
 from experiments.fs_stripe_004 import rai_permit_for_payment
-from test_fs_raw_denial_001_single_owner import owner as owner_fixture
+from test_fs_raw_denial_001_single_owner import owner as owner_fixture, http as owner_http, effect_rows
 
 @pytest.fixture(autouse=True)
 def isolate_usage():
@@ -54,7 +54,7 @@ def exercise(owner,*,payment_id="pi_fs_stripe_005_demo",error_after_commit=False
 
 def dispatch(owner,permit,grant,req,provider,hook=None):
     return capture_once(payment_id=provider.payment_id,permit=permit,
-        grant=grant,bound_request=req,owner_commit=owner.commit,
+        grant=grant,bound_request=req,owner_commit=lambda g,h: owner_http(owner["url"],{"envelope":g,"action_binding_hash":h,"route":"/execute-a"}),
         owner_version=get_authority_state_version,stripe=provider,
         before_dispatch=hook)
 
@@ -63,7 +63,7 @@ def test_valid_single_owner_capture_is_independently_retrieved(owner):
     result=dispatch(owner,permit,grant,req,stripe)
     assert result.disposition=="PROVIDER_CONFIRMED_FORMED"
     assert result.provider_status=="succeeded" and result.amount_received==100
-    assert stripe.calls==1 and owner.count()==1
+    assert stripe.calls==1 and len(effect_rows(owner["db"]))==1
 
 def test_revocation_after_local_owner_commit_prevents_stripe_dispatch(owner):
     permit,grant,req,stripe=exercise(owner)
@@ -96,8 +96,8 @@ def test_lost_capture_acknowledgement_resolved_by_provider_read(owner):
 
 def test_owner_unreachable_does_not_send_stripe_capture(owner):
     permit,grant,req,stripe=exercise(owner)
-    owner.process.terminate()
-    owner.process.communicate(timeout=3)
+    owner["process"].terminate()
+    owner["process"].communicate(timeout=3)
     result=dispatch(owner,permit,grant,req,stripe)
     assert result.disposition=="OWNER_OUTCOME_UNRESOLVED"
     assert stripe.calls==0
