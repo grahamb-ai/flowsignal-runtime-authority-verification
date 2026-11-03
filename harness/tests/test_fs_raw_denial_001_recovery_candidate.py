@@ -7,6 +7,7 @@ from urllib.error import HTTPError
 from urllib.request import Request,urlopen
 import json
 import os
+import pytest
 from urllib.parse import urlsplit
 
 from test_fs_raw_denial_001_ack_loss_red import (
@@ -16,6 +17,15 @@ from test_fs_raw_denial_001_ack_loss_red import (
 from test_fs_raw_denial_001_online_authority import start,stop
 from test_fs_raw_denial_001_rai_external_actuator import post
 from app.engines.authority_store import get_authority_state_version
+
+
+from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
+
+@pytest.fixture(autouse=True)
+def isolate_aggregate_authority_for_test():
+    reset_authority_usage_reference_state_for_test()
+    yield
+    reset_authority_usage_reference_state_for_test()
 
 def raw_lookup(services,signature,token):
     req=Request(services["source_url"]+"/outcome?signature="+signature,
