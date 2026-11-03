@@ -6,6 +6,14 @@ it CANNOT guarantee immediate rejection of revocation not yet delivered.
 """
 from contextlib import closing
 import sqlite3
+import pytest
+from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
+
+@pytest.fixture(autouse=True)
+def isolate_usage_reservations():
+    reset_authority_usage_reference_state_for_test()
+    yield
+    reset_authority_usage_reference_state_for_test()
 
 from app.engines.authority_store import advance_authority_state_version
 from app.engines.rai_external_export_reference import export_final_bind
