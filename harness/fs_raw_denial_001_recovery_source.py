@@ -52,6 +52,6 @@ if __name__=="__main__":
             "route TEXT NOT NULL)")
     port=int(os.environ.get("FS_RAI_SOURCE_PORT","0"))
     server=HTTPServer(("127.0.0.1",port),Handler)
-    server.dropped=False
+    server.dropped=os.environ.get("FS_RAI_TEST_DROP_ACK","1")!="1"
     print(server.server_port,flush=True)
     server.serve_forever()
