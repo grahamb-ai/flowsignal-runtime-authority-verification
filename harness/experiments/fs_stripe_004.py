@@ -86,14 +86,14 @@ class StripeTestClient:
             raise SandboxError("Stripe returned non-test-mode object; stop")
         return obj
 
-    def authorize(self,case_id):
+    def authorize(self,case_id,*,experiment='FS-STRIPE-004'):
         return self.call("/payment_intents",{
             "amount":AMOUNT_MINOR,"currency":"gbp","capture_method":"manual",
             "confirm":"true","payment_method":"pm_card_visa",
             "automatic_payment_methods[enabled]":"true",
             "automatic_payment_methods[allow_redirects]":"never",
             "description":"FS-STRIPE-004 isolated £1 reference authority test",
-            "metadata[experiment]":"FS-STRIPE-004",
+            "metadata[experiment]":experiment,
             "metadata[case]":case_id,
         },idempotency="fs-stripe-004-create-"+case_id)
 
@@ -164,11 +164,11 @@ class AuthorityOwner:
         with closing(sqlite3.connect(self.root/"owner.sqlite3")) as conn:
             return conn.execute("SELECT COUNT(*) FROM committed_effects").fetchone()[0]
 
-def rai_permit_for_payment(payment_id,*,return_request=False):
+def rai_permit_for_payment(payment_id,*,return_request=False,experiment='FS-STRIPE-004'):
     scenario=load_scenario(SCENARIO,rebase_to_now=False)
     now=datetime.now(timezone.utc)
     req=replace(scenario,amount=Decimal("1.00"),
-        purpose=f"FS-STRIPE-004 PaymentIntent {payment_id}",
+        purpose=f"{experiment} PaymentIntent {payment_id}",
         requested_execution_time=now,screening_captured_at=now,
         mandate_valid_until=now+timedelta(hours=1))
     prepared=prepare_payment_execution(req,route_id="STRIPE_TEST_CAPTURE",
