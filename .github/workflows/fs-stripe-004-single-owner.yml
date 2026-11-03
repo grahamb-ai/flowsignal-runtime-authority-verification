@@ -1,0 +1,44 @@
+name: FS-STRIPE-004 Single Owner Stripe TEST Capture
+on:
+  push:
+    branches:
+      - candidate/fs-stripe-004-single-owner-sandbox
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install reference requirements
+        run: python -m pip install -r requirements.txt
+      - name: Verify test-only Stripe credential
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        shell: bash
+        run: |
+          case "$STRIPE_TEST_SECRET_KEY" in
+            sk_test_*|rk_test_*) echo "Stripe test-only credential format confirmed" ;;
+            *) echo "Missing or non-test Stripe credential"; exit 2 ;;
+          esac
+      - name: Run FS-STRIPE-004 two-case qualification
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          FS_STRIPE_004_EVIDENCE_FILE: fs-stripe-004-evidence.json
+        run: python experiments/fs_stripe_004.py
+      - name: Preserve bounded non-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-stripe-004-${{ github.run_id }}
+          path: harness/fs-stripe-004-evidence.json
+          retention-days: 90
