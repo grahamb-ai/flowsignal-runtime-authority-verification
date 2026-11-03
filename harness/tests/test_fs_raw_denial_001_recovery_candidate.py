@@ -79,7 +79,8 @@ def test_outcome_survives_source_restart_and_replay_is_refused(services):
         FS_RAI_SOURCE_INITIAL_VERSION=str(get_authority_state_version()),
         FS_RAI_EXTERNAL_LEDGER=str(services["db"]),
         FS_RAI_BRIDGE_KEY=KEY.decode(),
-        FS_RAI_SOURCE_PORT=str(original_port))
+        FS_RAI_SOURCE_PORT=str(original_port),
+        FS_RAI_TEST_DROP_ACK="0")
     restarted,new_url=start("fs_raw_denial_001_recovery_source.py",env)
     try:
         assert new_url==services["source_url"]
