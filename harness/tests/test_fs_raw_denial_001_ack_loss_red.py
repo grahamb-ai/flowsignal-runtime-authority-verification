@@ -17,6 +17,15 @@ from test_fs_raw_denial_001_online_authority import start,stop,READER,ADMIN
 from test_fs_raw_denial_001_rai_external_actuator import KEY,mint,request,post
 from app.engines.rai_external_export_reference import export_final_bind
 
+
+from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
+
+@pytest.fixture(autouse=True)
+def isolate_aggregate_authority_for_test():
+    reset_authority_usage_reference_state_for_test()
+    yield
+    reset_authority_usage_reference_state_for_test()
+
 TOKEN="test-source-commit-only"
 @pytest.fixture(autouse=True)
 def usage_reset():
