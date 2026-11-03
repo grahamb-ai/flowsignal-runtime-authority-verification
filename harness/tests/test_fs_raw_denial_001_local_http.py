@@ -4,6 +4,7 @@ Runs only on 127.0.0.1. Service process cannot access external payment rails.
 Reads SQLite consequence store from test process, not service response alone.
 """
 import json
+from contextlib import closing
 import os
 import select
 import sqlite3
@@ -53,7 +54,7 @@ def invoke(service,route):
 def witnessed_rows(db):
     if not db.exists():
         return []
-    with sqlite3.connect(f"file:{db}?mode=ro",uri=True) as conn:
+    with closing(sqlite3.connect(f"file:{db}?mode=ro",uri=True)) as conn:
         return conn.execute("SELECT permit_signature,action_binding_hash,outcome "
                             "FROM consequence_outcomes ORDER BY permit_signature").fetchall()
 
