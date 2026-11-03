@@ -1,0 +1,19 @@
+name: FS-RAW-DENIAL-001 route closure first RED
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  first-red:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt
+      - name: Run bounded two-adapter observation and preserved failing invariant
+        run: |
+          python -m pytest -q tests/test_fs_raw_denial_001_two_adapter_characterization.py tests/test_fs_raw_denial_001_global_invariant_first_red.py
