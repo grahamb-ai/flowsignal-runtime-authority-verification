@@ -4,6 +4,8 @@ All payment provider effects here are synthetic fixture writes, NOT Stripe
 transactions. Genuine RAI mint / final-bind and authority owner are used.
 """
 from contextlib import closing
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -13,6 +15,8 @@ import pytest
 
 from app.engines.authority_store import advance_authority_state_version
 from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
+from app.engines.stripe_capture_grant import bind_stripe_capture
+from harness.runner import load_scenario
 from experiments.fs_stripe_004 import (
     AuthorityOwner,rai_permit_for_payment,BRIDGE_KEY,OWNER_COMMIT,
 )
@@ -77,6 +81,11 @@ def setup(tmp_path):
 
 def case(setup,payment_id="pi_fs006_001",amount=100):
     permit,grant=rai_permit_for_payment(payment_id)
+    original=load_scenario(ROOT/"harness"/"scenarios"/"AP-001_allow.json",rebase_to_now=False)
+    signed_request=replace(original,amount=Decimal("1.00"),
+        purpose=f"FS-STRIPE-004 PaymentIntent {payment_id}")
+    grant=bind_stripe_capture(signed_request,permit,payment_id,bridge_key=BRIDGE_KEY)
+    assert grant is not None
     with closing(sqlite3.connect(setup["provider_db"])) as db:
         db.execute("INSERT INTO payments VALUES(?,?,?,?,?)",
             (payment_id,"requires_capture",permit.action_binding_hash,0,0))
