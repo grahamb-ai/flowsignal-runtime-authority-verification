@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request,urlopen
-import json,os,select,sqlite3,subprocess,sys
+import json,os,select,sqlite3,subprocess,sys,socket,time
 import pytest
 
 from app.engines.authority_store import advance_authority_state_version
@@ -51,7 +51,18 @@ def setup(tmp_path):
                 cwd=ROOT,env=env,stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,text=True)
             assert select.select([process.stdout],[],[],8)[0],"executor startup timeout"
-            return process,"http://127.0.0.1:"+process.stdout.readline().strip()
+            url="http://127.0.0.1:"+process.stdout.readline().strip()
+            port=int(url.rsplit(":",1)[1])
+            for _ in range(80):
+                if process.poll() is not None:
+                    error=process.stderr.read()
+                    raise AssertionError("executor stopped at startup: "+error[-1800:])
+                try:
+                    with socket.create_connection(("127.0.0.1",port),timeout=.3):
+                        return process,url
+                except OSError:
+                    time.sleep(.025)
+            raise AssertionError("executor did not open listening port")
         proc,url=launch()
         try:
             yield {"owner":owner,"provider_db":provider_db,"ledger":ledger,
