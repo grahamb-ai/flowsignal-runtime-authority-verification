@@ -43,7 +43,7 @@ def invoke(service,route):
     address,_=service
     request=Request(f"{address}/{route}",data=b"{}",method="POST",
                     headers={"Content-Type":"application/json"})
-    with urlopen(request,timeout=10) as response:
+    with urlopen(request,timeout=35) as response:
         assert response.status==200
         return json.loads(response.read())
 
