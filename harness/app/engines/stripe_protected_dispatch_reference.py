@@ -77,7 +77,12 @@ def capture_once(*,payment_id,permit,grant,owner_commit,owner_version,
                           permit.action_binding_hash,amount_minor)
     if pre.get("status")!="requires_capture":
         raise DispatchRefused("PROVIDER_NOT_READY_FOR_CAPTURE")
-    status,answer=owner_commit(grant,permit.action_binding_hash)
+    try:
+        status,answer=owner_commit(grant,permit.action_binding_hash)
+    except Exception:
+        # A lost owner acknowledgement may hide a local commitment, but must
+        # never be translated into permission to call Stripe.
+        return DispatchResult("OWNER_OUTCOME_UNRESOLVED",payment_id,None,None)
     if status!=200 or answer.get("status")!="WITNESSED_CONSEQUENCE_FORMED":
         return DispatchResult("REFUSED_BY_OWNER",payment_id,pre["status"],
                               pre.get("amount_received"))
