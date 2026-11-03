@@ -53,6 +53,7 @@ def grant():
     return permit,assertion
 
 def client_batch(tmp_path,url,permit,envelope,count):
+    tmp_path.mkdir(parents=True,exist_ok=True)
     gate=tmp_path/"release-gate"
     children=[]
     for index in range(count):
