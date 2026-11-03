@@ -37,7 +37,7 @@ def _checked_provider(intent, payment_id, bound_hash, amount_minor):
     return intent
 
 def capture_once(*,payment_id,permit,grant,owner_commit,owner_version,
-                 stripe,amount_minor=100,bound_request=None,before_dispatch=None):
+                 stripe,amount_minor=100,bound_request=None,before_dispatch=None,expected_experiment="FS-STRIPE-004"):
     """Enforce the local admission gate and verify Stripe final state.
 
     before_dispatch is a test-only synchronous hook for deterministic
@@ -56,7 +56,7 @@ def capture_once(*,payment_id,permit,grant,owner_commit,owner_version,
     original=grant.get("statement",{})
     if original.get("permit_signature")!=permit.signature:
         raise DispatchRefused("GRANT_CORRESPONDENCE_INVALID")
-    if bound_request is None or bound_request.purpose!=f"FS-STRIPE-004 PaymentIntent {payment_id}":
+    if bound_request is None or bound_request.purpose!=f"{expected_experiment} PaymentIntent {payment_id}":
         raise DispatchRefused("PROVIDER_TARGET_NOT_BOUND_TO_RAI_OPERATION")
     from app.engines.execution_gateway import ExecutionAttempt,action_binding_hash
     from decimal import Decimal
