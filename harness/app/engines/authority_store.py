@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import os
 from decimal import Decimal
 from threading import RLock
 
@@ -34,6 +35,9 @@ def get_authoritative_mandate_limit(mandate_id: str) -> Decimal | None:
 
 
 def get_authority_state_version() -> int:
+    if os.environ.get('FLOWSIGNAL_AUTHORITY_OWNER_URL'):
+        from app.engines.authority_owner_client import authoritative_version
+        return authoritative_version()
     with _AUTHORITY_STATE_LOCK:
         return _AUTHORITY_STATE.version
 
@@ -45,9 +49,15 @@ def authority_state_guard():
 
 
 def get_authority_state_version_unlocked() -> int:
+    if os.environ.get('FLOWSIGNAL_AUTHORITY_OWNER_URL'):
+        from app.engines.authority_owner_client import authoritative_version
+        return authoritative_version()
     return _AUTHORITY_STATE.version
 
 
 def advance_authority_state_version() -> int:
+    if os.environ.get('FLOWSIGNAL_AUTHORITY_OWNER_URL'):
+        from app.engines.authority_owner_client import revoke_authority
+        return revoke_authority()
     with _AUTHORITY_STATE_LOCK:
         return _AUTHORITY_STATE.advance()
