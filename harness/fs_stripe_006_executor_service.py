@@ -21,6 +21,7 @@ import hashlib,hmac,json,os,sqlite3
 
 from app.engines.stripe_protected_capture import execute_capture
 from app.engines.rai_export_verifier import validate_export
+from app.engines.stripe_capture_grant import SCHEMA
 from experiments.fs_stripe_004 import StripeTestClient,post_json
 
 MODE=os.environ.get("FS_STRIPE_EXECUTOR_MODE","stripe")
@@ -159,6 +160,13 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(400,{"status":"REFUSE","reason":"MALFORMED_REQUEST"});return
         if status!="VERIFIED" or permit.action_binding_hash!=binding:
             self.reply(403,{"status":"REFUSE","reason":"INVALID_RAI_AUTHORITY"});return
+        statement=envelope.get("statement",{})
+        if (statement.get("schema")!=SCHEMA
+                or statement.get("payment_intent_id")!=payment_id
+                or statement.get("amount_minor")!=100
+                or statement.get("currency")!="gbp"
+                or statement.get("capture_method")!="manual"):
+            self.reply(403,{"status":"REFUSE","reason":"SIGNED_CAPTURE_SCOPE_MISMATCH"});return
         existing=stored(payment_id)
         if existing is not None:
             if existing[0]!=permit.signature or existing[1]!=binding:
