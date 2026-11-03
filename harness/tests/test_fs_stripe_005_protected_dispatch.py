@@ -9,8 +9,7 @@ from app.engines.authority_usage import reset_authority_usage_reference_state_fo
 from app.engines.stripe_protected_dispatch_reference import (
     DispatchRefused,capture_once
 )
-from experiments.fs_stripe_004 import rai_permit_for_payment
-from test_fs_raw_denial_001_single_owner import owner as owner_fixture, http as owner_http, effect_rows
+from experiments.fs_stripe_004 import rai_permit_for_payment, AuthorityOwner
 
 @pytest.fixture(autouse=True)
 def isolate_usage():
@@ -19,8 +18,9 @@ def isolate_usage():
     reset_authority_usage_reference_state_for_test()
 
 @pytest.fixture
-def owner(owner_fixture):
-    return owner_fixture
+def owner(tmp_path):
+    with AuthorityOwner(tmp_path) as instance:
+        yield instance
 
 class StripeSimulator:
     def __init__(self,payment_id,binding,*,error_after_commit=False):
@@ -54,7 +54,7 @@ def exercise(owner,*,payment_id="pi_fs_stripe_005_demo",error_after_commit=False
 
 def dispatch(owner,permit,grant,req,provider,hook=None):
     return capture_once(payment_id=provider.payment_id,permit=permit,
-        grant=grant,bound_request=req,owner_commit=lambda g,h: owner_http(owner["url"],{"envelope":g,"action_binding_hash":h,"route":"/execute-a"}),
+        grant=grant,bound_request=req,owner_commit=owner.commit,
         owner_version=get_authority_state_version,stripe=provider,
         before_dispatch=hook)
 
@@ -63,7 +63,7 @@ def test_valid_single_owner_capture_is_independently_retrieved(owner):
     result=dispatch(owner,permit,grant,req,stripe)
     assert result.disposition=="PROVIDER_CONFIRMED_FORMED"
     assert result.provider_status=="succeeded" and result.amount_received==100
-    assert stripe.calls==1 and len(effect_rows(owner["db"]))==1
+    assert stripe.calls==1 and owner.count()==1
 
 def test_revocation_after_local_owner_commit_prevents_stripe_dispatch(owner):
     permit,grant,req,stripe=exercise(owner)
@@ -96,8 +96,8 @@ def test_lost_capture_acknowledgement_resolved_by_provider_read(owner):
 
 def test_owner_unreachable_does_not_send_stripe_capture(owner):
     permit,grant,req,stripe=exercise(owner)
-    owner["process"].terminate()
-    owner["process"].communicate(timeout=3)
+    owner.process.terminate()
+    owner.process.communicate(timeout=3)
     result=dispatch(owner,permit,grant,req,stripe)
     assert result.disposition=="OWNER_OUTCOME_UNRESOLVED"
     assert stripe.calls==0
