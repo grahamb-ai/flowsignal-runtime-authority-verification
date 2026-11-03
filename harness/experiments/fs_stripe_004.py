@@ -164,7 +164,7 @@ class AuthorityOwner:
         with closing(sqlite3.connect(self.root/"owner.sqlite3")) as conn:
             return conn.execute("SELECT COUNT(*) FROM committed_effects").fetchone()[0]
 
-def rai_permit_for_payment(payment_id):
+def rai_permit_for_payment(payment_id,*,return_request=False):
     scenario=load_scenario(SCENARIO,rebase_to_now=False)
     now=datetime.now(timezone.utc)
     req=replace(scenario,amount=Decimal("1.00"),
@@ -177,7 +177,7 @@ def rai_permit_for_payment(payment_id):
     if permit is None:raise SandboxError("Genuine RAI final bind refused")
     grant=export_final_bind(permit,bridge_key=BRIDGE_KEY)
     if grant is None:raise SandboxError("RAI provenance bridge refused")
-    return permit,grant
+    return (permit,grant,req) if return_request else (permit,grant)
 
 def run_case(stripe,case_id,*,revoke):
     reset_authority_usage_reference_state_for_test()
