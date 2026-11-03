@@ -99,5 +99,5 @@ def test_owner_unreachable_does_not_send_stripe_capture(owner):
     owner.process.terminate()
     owner.process.communicate(timeout=3)
     result=dispatch(owner,permit,grant,req,stripe)
-    assert result.disposition=="REFUSED_BY_OWNER" if False else result.disposition=="REFUSED_BY_OWNER"
+    assert result.disposition=="OWNER_OUTCOME_UNRESOLVED"
     assert stripe.calls==0
