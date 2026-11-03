@@ -167,3 +167,29 @@ def test_first_red_revocation_after_export_must_prevent_external_commit(actuator
         "source authority version changed; cross-process freshness is missing. "
         f"Actual HTTP status={code}, response={result}, ledger={rows(actuator)}"
     )
+
+
+def test_missing_published_authority_state_fails_closed(actuator):
+    import sqlite3
+    permit=mint(request())
+    envelope=export_final_bind(permit,bridge_key=KEY)
+    assert envelope is not None
+    with sqlite3.connect(actuator[1]) as con:
+        con.execute("DELETE FROM authority_fence")
+    code,result=post(actuator,"/execute-b",envelope,permit.action_binding_hash)
+    assert (code,result["status"])==(403,"AUTHORITY_STATE_UNAVAILABLE")
+    assert rows(actuator)==[]
+
+
+def test_stale_authority_version_cannot_replace_published_fence(actuator):
+    from app.engines.authority_store import advance_authority_state_version
+    permit=mint(request())
+    envelope=export_final_bind(permit,bridge_key=KEY)
+    old_version=permit.authority_state_version
+    newer=advance_authority_state_version()
+    assert newer>old_version
+    assert publish_authority_version(actuator[1],newer)
+    assert not publish_authority_version(actuator[1],old_version)
+    code,result=post(actuator,"/execute-a",envelope,permit.action_binding_hash)
+    assert (code,result["status"])==(403,"AUTHORITY_STATE_STALE")
+    assert rows(actuator)==[]
