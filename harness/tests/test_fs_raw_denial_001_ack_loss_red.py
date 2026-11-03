@@ -32,7 +32,7 @@ def services(tmp_path):
         FS_RAI_SOURCE_ADMIN_TOKEN=ADMIN,FS_RAI_SOURCE_COMMIT_TOKEN=TOKEN,
         FS_RAI_SOURCE_INITIAL_VERSION=str(get_authority_state_version()),
         FS_RAI_EXTERNAL_LEDGER=str(db),FS_RAI_BRIDGE_KEY=KEY.decode())
-    source,source_url=start("fs_raw_denial_001_drop_ack_source.py",env)
+    source,source_url=start("fs_raw_denial_001_recovery_source.py",env)
     actuator_env=os.environ.copy()
     actuator_env.update(FS_RAI_EXTERNAL_LEDGER=str(db),FS_RAI_BRIDGE_KEY=KEY.decode(),
         FS_RAI_AUTHORITY_SOURCE_URL=source_url,FS_RAI_SOURCE_READ_TOKEN=READER,
