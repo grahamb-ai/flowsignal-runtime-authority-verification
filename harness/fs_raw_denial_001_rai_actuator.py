@@ -5,6 +5,7 @@ from the source process. It cannot itself reproduce the in-process provenance
 registry; the bridge is a trusted reference authority. No external payments.
 """
 from datetime import datetime,timezone
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler,HTTPServer
 from pathlib import Path
 import hashlib,hmac,json,os,sqlite3
@@ -65,9 +66,19 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(403,{"status":status,"formed":False});return
         if payload.get("action_binding_hash")!=permit.action_binding_hash:
             self.reply(403,{"status":"EXECUTION_BINDING_MISMATCH","formed":False});return
-        with connect() as c:
+        with closing(connect()) as c:
             try:
                 c.execute("BEGIN IMMEDIATE")
+                try:
+                    row=c.execute("SELECT version FROM authority_fence WHERE singleton=1").fetchone()
+                except sqlite3.OperationalError:
+                    row=None
+                if row is None:
+                    c.execute("ROLLBACK")
+                    self.reply(403,{"status":"AUTHORITY_STATE_UNAVAILABLE","formed":False});return
+                if row[0]!=permit.authority_state_version:
+                    c.execute("ROLLBACK")
+                    self.reply(403,{"status":"AUTHORITY_STATE_STALE","formed":False});return
                 c.execute("INSERT INTO external_effects VALUES(?,?,?)",
                     (permit.signature,permit.action_binding_hash,self.path))
                 c.execute("COMMIT")

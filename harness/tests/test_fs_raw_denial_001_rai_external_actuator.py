@@ -17,6 +17,8 @@ from app.engines.execution_gateway import ExecutionAttempt,validate_execution
 from app.engines.financial_runtime import evaluate_financial
 from app.engines.runtime_authority_payment import prepare_payment_execution,mint_rai_bound_execution_permit
 from app.engines.rai_external_export_reference import export_final_bind
+from app.engines.authority_store import get_authority_state_version
+from app.engines.sandbox_authority_fence_publisher import publish_authority_version
 from harness.runner import load_scenario
 
 KEY=b"test-only-rai-bridge-key"
@@ -38,6 +40,7 @@ def actuator(tmp_path):
     try:
         assert select.select([p.stdout],[],[],10)[0],"actuator startup timeout"
         port=int(p.stdout.readline().strip())
+        assert publish_authority_version(db,get_authority_state_version())
         yield f"http://127.0.0.1:{port}",db
     finally:
         p.terminate()
@@ -156,6 +159,7 @@ def test_first_red_revocation_after_export_must_prevent_external_commit(actuator
     assert envelope is not None
     assert permit.authority_state_version==get_authority_state_version()
     advance_authority_state_version()
+    assert publish_authority_version(actuator[1],get_authority_state_version())
     assert permit.authority_state_version!=get_authority_state_version()
     code,result=post(actuator,"/execute-b",envelope,permit.action_binding_hash)
     assert code==403 and result["formed"] is False and rows(actuator)==[], (
@@ -163,3 +167,29 @@ def test_first_red_revocation_after_export_must_prevent_external_commit(actuator
         "source authority version changed; cross-process freshness is missing. "
         f"Actual HTTP status={code}, response={result}, ledger={rows(actuator)}"
     )
+
+
+def test_missing_published_authority_state_fails_closed(actuator):
+    import sqlite3
+    permit=mint(request())
+    envelope=export_final_bind(permit,bridge_key=KEY)
+    assert envelope is not None
+    with sqlite3.connect(actuator[1]) as con:
+        con.execute("DELETE FROM authority_fence")
+    code,result=post(actuator,"/execute-b",envelope,permit.action_binding_hash)
+    assert (code,result["status"])==(403,"AUTHORITY_STATE_UNAVAILABLE")
+    assert rows(actuator)==[]
+
+
+def test_stale_authority_version_cannot_replace_published_fence(actuator):
+    from app.engines.authority_store import advance_authority_state_version
+    permit=mint(request())
+    envelope=export_final_bind(permit,bridge_key=KEY)
+    old_version=permit.authority_state_version
+    newer=advance_authority_state_version()
+    assert newer>old_version
+    assert publish_authority_version(actuator[1],newer)
+    assert not publish_authority_version(actuator[1],old_version)
+    code,result=post(actuator,"/execute-a",envelope,permit.action_binding_hash)
+    assert (code,result["status"])==(403,"AUTHORITY_STATE_STALE")
+    assert rows(actuator)==[]
