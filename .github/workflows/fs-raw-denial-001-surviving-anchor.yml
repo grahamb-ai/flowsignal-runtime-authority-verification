@@ -1,0 +1,17 @@
+name: FS-RAW-DENIAL-001 surviving source anchor candidate
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  surviving-anchor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pytest -q -rx tests/test_fs_raw_denial_001_surviving_anchor.py
