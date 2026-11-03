@@ -21,6 +21,8 @@ from urllib.request import Request,urlopen
 from urllib.error import HTTPError,URLError
 import base64,hashlib,json,os,select,sqlite3,subprocess,sys,tempfile
 
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+
 from app.engines.authority_usage import reset_authority_usage_reference_state_for_test
 from app.engines.authority_store import advance_authority_state_version
 from app.engines.rai_external_export_reference import export_final_bind
