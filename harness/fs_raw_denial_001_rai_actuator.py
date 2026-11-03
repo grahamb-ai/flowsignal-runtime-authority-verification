@@ -8,12 +8,13 @@ from datetime import datetime,timezone
 from contextlib import closing
 from http.server import BaseHTTPRequestHandler,HTTPServer
 from pathlib import Path
-import hashlib,hmac,json,os,sqlite3
+import hashlib,hmac,json,os,sqlite3,time
 from app.engines.permit_authority import ExecutionPermit,verify_execution_permit
 from app.engines.rai_external_export_reference import canonical
 
 DB=Path(os.environ["FS_RAI_EXTERNAL_LEDGER"])
 BRIDGE_KEY=os.environ["FS_RAI_BRIDGE_KEY"].encode()
+MAX_AUTHORITY_AGE=float(os.environ.get("FS_RAI_AUTHORITY_MAX_AGE_SECONDS","3"))
 
 def connect():
     DB.parent.mkdir(parents=True,exist_ok=True)
@@ -70,12 +71,16 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 c.execute("BEGIN IMMEDIATE")
                 try:
-                    row=c.execute("SELECT version FROM authority_fence WHERE singleton=1").fetchone()
+                    row=c.execute("SELECT version,observed_at FROM authority_fence WHERE singleton=1").fetchone()
                 except sqlite3.OperationalError:
                     row=None
                 if row is None:
                     c.execute("ROLLBACK")
                     self.reply(403,{"status":"AUTHORITY_STATE_UNAVAILABLE","formed":False});return
+                age=time.time()-row[1]
+                if MAX_AUTHORITY_AGE<=0 or age<0 or age>MAX_AUTHORITY_AGE:
+                    c.execute("ROLLBACK")
+                    self.reply(403,{"status":"AUTHORITY_STATE_FRESHNESS_EXPIRED","formed":False});return
                 if row[0]!=permit.authority_state_version:
                     c.execute("ROLLBACK")
                     self.reply(403,{"status":"AUTHORITY_STATE_STALE","formed":False});return
