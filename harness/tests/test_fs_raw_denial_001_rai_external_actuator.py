@@ -140,3 +140,26 @@ def test_signed_permit_field_tampering_is_refused(actuator):
     assert code==403 and result["status"]=="INVALID_RAI_PERMIT"
     assert rows(actuator)==[]
 
+
+
+def test_first_red_revocation_after_export_must_prevent_external_commit(actuator):
+    """Expect RED until external actuator can verify current authority.
+
+    Genuine final-bind permit and bridge assertion were valid at export;
+    advancing authority in source process must make them inadmissible NOW.
+    """
+    from app.engines.authority_store import (
+        advance_authority_state_version, get_authority_state_version
+    )
+    permit=mint(request())
+    envelope=export_final_bind(permit,bridge_key=KEY)
+    assert envelope is not None
+    assert permit.authority_state_version==get_authority_state_version()
+    advance_authority_state_version()
+    assert permit.authority_state_version!=get_authority_state_version()
+    code,result=post(actuator,"/execute-b",envelope,permit.action_binding_hash)
+    assert code==403 and result["formed"] is False and rows(actuator)==[], (
+        "FIRST RED: actuator accepted a previously exported grant after the "
+        "source authority version changed; cross-process freshness is missing. "
+        f"Actual HTTP status={code}, response={result}, ledger={rows(actuator)}"
+    )
