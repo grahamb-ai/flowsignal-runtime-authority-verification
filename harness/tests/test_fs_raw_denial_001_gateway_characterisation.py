@@ -78,14 +78,14 @@ def test_D04_later_session_stale_authority_version_blocks(setup):
 def test_D05_fresh_matching_allow_is_permitted_to_mint_reference_permit(setup):
     original,receipt,controls=setup
     controls["version"]=8
-    new=replace(receipt,id="receipt-002",authority_state_version=8)
+    new=SimpleNamespace(**{**vars(receipt),"id":"receipt-002","authority_state_version":8})
     r=gw.validate_execution(new,original)
     assert r.status=="PERMITTED" and r.execution_permit is not None
     # PERMITTED != CONSEQUENCE_FORMED; mint is a test double.
 
 def test_refusal_persists_for_repeated_matching_requests(setup):
     original,receipt,_=setup
-    denied=replace(receipt,decision="REFUSE")
+    denied=SimpleNamespace(**{**vars(receipt),"decision":"REFUSE"})
     for _ in range(3):
         r=gw.validate_execution(denied,original)
         assert (r.status,r.reason_code)==("BLOCKED","NO_APPLICABLE_ALLOW")
