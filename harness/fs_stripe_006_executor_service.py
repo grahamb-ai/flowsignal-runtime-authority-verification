@@ -20,7 +20,7 @@ from urllib.parse import parse_qs,urlsplit
 import hashlib,hmac,json,os,sqlite3
 
 from app.engines.stripe_protected_capture import execute_capture
-from fs_raw_denial_001_rai_actuator import validate as verify_export
+from app.engines.rai_export_verifier import validate_export
 from experiments.fs_stripe_004 import StripeTestClient,post_json
 
 MODE=os.environ.get("FS_STRIPE_EXECUTOR_MODE","stripe")
@@ -154,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(binding,str) or len(binding)!=64:
                 raise ValueError("binding")
             if not isinstance(envelope,dict):raise ValueError("envelope")
-            status,permit=verify_export(envelope)
+            status,permit=validate_export(envelope,os.environ["FS_RAI_BRIDGE_KEY"].encode())
         except (ValueError,KeyError,TypeError,UnicodeDecodeError):
             self.reply(400,{"status":"REFUSE","reason":"MALFORMED_REQUEST"});return
         if status!="VERIFIED" or permit.action_binding_hash!=binding:
