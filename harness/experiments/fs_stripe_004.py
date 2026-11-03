@@ -76,7 +76,7 @@ class StripeTestClient:
             # only error type/status without exposing secret credentials.
             try:
                 problem=json.loads(error.read()).get("error",{})
-                diagnostic={k:problem.get(k) for k in ("type","code","param") if problem.get(k)}
+                diagnostic={k:problem.get(k) for k in ("type","code","param","message") if problem.get(k)}
             except (ValueError,TypeError):
                 diagnostic={}
             raise SandboxError(f"Stripe request failed HTTP {error.code}; diagnostic={diagnostic}") from None
