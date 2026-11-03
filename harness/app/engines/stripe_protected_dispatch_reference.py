@@ -37,7 +37,7 @@ def _checked_provider(intent, payment_id, bound_hash, amount_minor):
     return intent
 
 def capture_once(*,payment_id,permit,grant,owner_commit,owner_version,
-                 stripe,amount_minor=100,before_dispatch=None):
+                 stripe,amount_minor=100,bound_request=None,before_dispatch=None):
     """Enforce the local admission gate and verify Stripe final state.
 
     before_dispatch is a test-only synchronous hook for deterministic
@@ -56,6 +56,23 @@ def capture_once(*,payment_id,permit,grant,owner_commit,owner_version,
     original=grant.get("statement",{})
     if original.get("permit_signature")!=permit.signature:
         raise DispatchRefused("GRANT_CORRESPONDENCE_INVALID")
+    if bound_request is None or bound_request.purpose!=f"FS-STRIPE-004 PaymentIntent {payment_id}":
+        raise DispatchRefused("PROVIDER_TARGET_NOT_BOUND_TO_RAI_OPERATION")
+    from app.engines.execution_gateway import ExecutionAttempt,action_binding_hash
+    from decimal import Decimal
+    from datetime import datetime,timezone
+    expected=ExecutionAttempt(
+        actor_id=bound_request.actor_id,principal_id=bound_request.principal_id,
+        action=bound_request.action,target=bound_request.target,
+        amount=bound_request.amount,currency=bound_request.currency,
+        source_account=bound_request.source_account,
+        beneficiary=bound_request.beneficiary,
+        beneficiary_account_reference=bound_request.beneficiary_account_reference,
+        purpose=bound_request.purpose,mandate_id=bound_request.mandate_id,
+        attempted_at=bound_request.requested_execution_time)
+    if (action_binding_hash(expected)!=permit.action_binding_hash
+        or bound_request.amount!=Decimal("1.00") or bound_request.currency.upper()!="GBP"):
+        raise DispatchRefused("RAI_OPERATION_TARGET_AMOUNT_MISMATCH")
     pre=_checked_provider(stripe.retrieve(payment_id),payment_id,
                           permit.action_binding_hash,amount_minor)
     if pre.get("status")!="requires_capture":
