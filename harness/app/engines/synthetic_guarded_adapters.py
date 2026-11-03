@@ -5,6 +5,7 @@ FlowSignal gateway before a simulated outcome can be recorded.
 No real downstream consequence, payment or shell command is executed.
 """
 import base64
+import binascii
 from dataclasses import dataclass
 from app.engines.execution_gateway import validate_execution
 
@@ -28,7 +29,7 @@ class GuardedAdapterPair:
             try:
                 represented_action=base64.b64decode(
                     representation,validate=True).decode("utf-8")
-            except (ValueError,UnicodeDecodeError):
+            except (ValueError,UnicodeDecodeError,binascii.Error):
                 return SyntheticOutcome(adapter,"BLOCKED","INVALID_PRESENTATION",False)
             if represented_action != attempt.action:
                 return SyntheticOutcome(adapter,"BLOCKED","PRESENTATION_ACTION_MISMATCH",False)
